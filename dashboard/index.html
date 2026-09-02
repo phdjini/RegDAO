@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RegDAO 등록부 — 현황판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700;8..60,800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0B1220;
+    --bg-2:#0F1830;
+    --panel:#121B33;
+    --panel-2:#182545;
+    --ink:#F4F6FB;
+    --ink-soft:#A9B4CE;
+    --line:#233252;
+    --line-strong:#33456B;
+    --gold:#D4B15C;
+    --gold-bright:#E8CB84;
+    --gold-soft:rgba(212,177,92,.14);
+    --seal:#E0685A;
+    --seal-soft:rgba(224,104,90,.14);
+    --moss:#5FBF8C;
+    --moss-soft:rgba(95,191,140,.14);
+    --shadow: 0 2px 6px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.30);
+    --shadow-lg: 0 6px 16px rgba(0,0,0,.4), 0 20px 48px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans KR', sans-serif; -webkit-font-smoothing:antialiased;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  .masthead{background: linear-gradient(135deg, var(--bg-2) 0%, var(--panel-2) 100%); color: var(--ink); padding:34px 32px 26px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; position:relative; overflow:hidden; border-bottom:1px solid var(--line-strong);}
+  .masthead::after{content:"";position:absolute; right:-60px; top:-60px; width:220px; height:220px; border-radius:50%; border:1px solid rgba(212,177,92,.2); pointer-events:none;}
+  .masthead::before{content:"";position:absolute; right:20px; top:-90px; width:220px; height:220px; border-radius:50%; border:1px solid rgba(212,177,92,.12); pointer-events:none;}
+  .masthead-title{font-family:'Source Serif 4', serif; font-weight:800; font-size:32px; letter-spacing:-0.01em; position:relative; color:var(--ink);}
+  .masthead-sub{font-size:12.5px; color:var(--gold-bright); margin-top:6px; letter-spacing:0.04em; position:relative;}
+  .wallet-box{display:flex; align-items:center; gap:10px; font-size:13.5px; position:relative; z-index:2;}
+
+  .btn{font-family:'IBM Plex Sans KR', sans-serif; font-size:13.5px; font-weight:600; padding:10px 18px; border:1.5px solid var(--gold); background:var(--gold); color:#12182B; border-radius:3px; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;}
+  .btn:hover{transform:translateY(-1px); box-shadow:var(--shadow);}
+  .btn.ghost{background:transparent;color:var(--ink); border-color:var(--line-strong);}
+  .btn.seal{border-color:var(--seal);background:var(--seal); color:#1a0a08;}
+  .btn.dark{border-color:var(--line-strong);background:var(--panel-2); color:var(--ink);}
+  .btn.small{padding:6px 12px;font-size:12.5px;}
+  .btn:disabled{opacity:.4;cursor:not-allowed; transform:none;}
+  .addr-chip{font-family:'IBM Plex Mono', monospace; font-size:12.5px; background:rgba(212,177,92,.08); border:1px solid rgba(212,177,92,.4); color:var(--gold-bright); padding:7px 11px; border-radius:3px;}
+
+  .net-status{background:var(--panel); border-bottom:1px solid var(--line); padding:9px 32px; display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); position:relative;}
+  .net-dot{width:7px; height:7px; border-radius:50%; background:var(--moss); flex:none;}
+  .net-status.disconnected .net-dot{background:var(--seal);}
+  .admin-config{margin-left:auto; font-size:12.5px;}
+  .admin-config summary{cursor:pointer; color:var(--ink-soft); list-style:none; padding:3px 10px; border:1px solid var(--line-strong); border-radius:3px;}
+  .admin-config summary::-webkit-details-marker{display:none;}
+  .admin-config[open] summary{background:var(--panel-2);}
+  .config-inner{position:absolute; right:32px; margin-top:10px; background:var(--panel); border:1px solid var(--line-strong); padding:16px; display:flex; flex-direction:column; gap:10px; width:360px; box-shadow:var(--shadow-lg); z-index:30;}
+  .config-inner label{font-size:11px; color:var(--ink-soft); display:block; margin-bottom:3px;}
+  .config-inner input{font-family:'IBM Plex Mono', monospace; font-size:12.5px; padding:7px 9px; border:1px solid var(--line-strong); border-radius:3px; width:100%; background:var(--bg-2); color:var(--ink);}
+  .config-group{width:100%;}
+
+  .tabs{display:flex; flex-wrap:wrap; gap:2px; padding:0 32px; background:var(--panel); border-bottom:1px solid var(--line);}
+  .tab{padding:14px 18px; font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink-soft); border-bottom:3px solid transparent; letter-spacing:0.01em; white-space:nowrap; transition:color .12s ease;}
+  .tab:hover{color:var(--ink);}
+  .tab.active{color:var(--gold-bright); border-bottom-color:var(--gold);}
+
+  .sub-tabs{display:flex; gap:8px; margin:16px 0; border-bottom:1px solid var(--line-strong);}
+  .sub-tab{padding:9px 14px; font-size:12.5px; font-weight:600; cursor:pointer; color:var(--ink-soft); border-bottom:2px solid transparent;}
+  .sub-tab.active{color:var(--ink); border-bottom-color:var(--seal);}
+  .sub-panel{display:none;}
+  .sub-panel.active{display:block;}
+
+  main{padding:30px 32px 64px; max-width:1180px; margin:0 auto;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .stat-row{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1px; background:var(--line-strong); border:1px solid var(--line-strong); margin-bottom:30px; box-shadow:var(--shadow); border-radius:4px; overflow:hidden;}
+  .stat{background:var(--panel); padding:19px 20px; transition:background .12s ease;}
+  .stat:hover{background:var(--panel-2);}
+  .stat-num{font-family:'Source Serif 4', serif; font-size:33px; font-weight:700; line-height:1; color:var(--gold-bright);}
+  .stat-label{font-size:11px; color:var(--ink-soft); margin-top:6px; letter-spacing:0.02em;}
+
+  h2.section-title{font-family:'Source Serif 4', serif; font-size:20px; font-weight:700; margin:0 0 4px; color:var(--ink);}
+  .section-desc{font-size:12.5px; color:var(--ink-soft); margin-bottom:16px;}
+
+  table.ledger{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line-strong); box-shadow:var(--shadow); border-radius:4px; overflow:hidden;}
+  table.ledger th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-weight:700; padding:11px 14px; border-bottom:1.5px solid var(--line-strong); background:var(--panel-2);}
+  table.ledger td{padding:12px 14px; font-size:13.5px; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink);}
+  table.ledger tr:last-child td{border-bottom:none;}
+  table.ledger tr:hover td{background:var(--panel-2);}
+
+  .seal-glyph{display:inline-flex; align-items:center; gap:9px;}
+  .tier-swatch{width:26px; height:26px; border-radius:50%; flex:none; border:2px solid var(--line-strong);}
+  .tier-0{background:#5b5f70;}
+  .tier-1{background:#96793B;}
+  .tier-2{background:#9aa0ad;}
+  .tier-3{background:#D4B15C;}
+  .tier-4{background:#7A5F2A; border-color:#E0685A;}
+  .tier-5{background:#D4B15C; border-color:#E0685A; box-shadow:0 0 0 2px rgba(212,177,92,.25);}
+  .tier-label{font-size:12.5px; font-weight:700; color:var(--ink);}
+  .tier-sub{font-size:11px; color:var(--ink-soft);}
+
+  .points-bar-wrap{width:120px;}
+  .points-bar{background:var(--line); height:7px; border-radius:4px; overflow:hidden;}
+  .points-bar-fill{background:linear-gradient(90deg, var(--gold) 0%, var(--gold-bright) 100%); height:7px;}
+  .points-text{font-size:11px; color:var(--ink-soft); margin-top:3px;}
+
+  .badge-pill{display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; letter-spacing:0.01em;}
+  .pill-active{background:var(--moss-soft); color:var(--moss);}
+  .pill-revoked{background:var(--seal-soft); color:var(--seal);}
+  .pill-pending{background:var(--gold-soft); color:var(--gold-bright);}
+  .pill-neutral{background:var(--line); color:var(--ink-soft);}
+
+  .empty-state{padding:44px 20px; text-align:center; color:var(--ink-soft); font-size:13.5px; background:var(--panel); border:1px dashed var(--line-strong); border-radius:4px;}
+
+  .proposal, .post-card{background:var(--panel); border:1px solid var(--line-strong); border-radius:4px; padding:18px 20px; margin-bottom:14px; box-shadow:var(--shadow); transition:box-shadow .15s ease, transform .15s ease;}
+  .proposal:hover, .post-card:hover{box-shadow:var(--shadow-lg); transform:translateY(-1px);}
+  .proposal-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px;}
+  .proposal-id{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);}
+  .proposal-desc{font-size:13.5px; line-height:1.55; margin:6px 0 10px; color:var(--ink);}
+  .vote-bar{display:flex; height:8px; border-radius:4px; overflow:hidden; background:var(--line); margin-bottom:8px;}
+  .vote-bar .for{background:var(--moss);}
+  .vote-bar .against{background:var(--seal);}
+  .vote-bar .abstain{background:var(--line-strong);}
+  .vote-meta{font-size:11px; color:var(--ink-soft); display:flex; gap:14px; flex-wrap:wrap;}
+  .proposal-actions{margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;}
+
+  .cat-pill{display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:3px; letter-spacing:0.02em;}
+  .cat-0{background:var(--seal-soft); color:var(--seal);}
+  .cat-1{background:var(--gold-soft); color:var(--gold-bright);}
+  .cat-2{background:var(--moss-soft); color:var(--moss);}
+  .cat-3{background:rgba(120,150,220,.15); color:#9fb6e8;}
+  .cat-4{background:var(--line); color:var(--ink-soft);}
+
+  .post-title{font-family:'Source Serif 4', serif; font-size:17px; font-weight:700; margin:6px 0 4px; color:var(--ink);}
+  .post-meta{font-size:11px; color:var(--ink-soft); margin-bottom:10px;}
+  .post-content{font-size:13.5px; line-height:1.6; margin-bottom:12px; white-space:pre-wrap; color:var(--ink);}
+  .post-footer{display:flex; gap:14px; align-items:center; font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:10px;}
+
+  .like-row{display:flex; gap:8px; align-items:center; border-top:1px solid var(--line); padding-top:12px; flex-wrap:wrap;}
+  .like-btn{display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Sans KR', sans-serif; font-size:13.5px; font-weight:600; padding:7px 14px; border:1.5px solid var(--line-strong); background:var(--panel-2); border-radius:20px; cursor:pointer; transition:all .12s ease; color:var(--ink);}
+  .like-btn:hover:not(:disabled){border-color:var(--gold); background:var(--gold-soft); transform:translateY(-1px);}
+  .like-btn:disabled{cursor:default; opacity:.75;}
+  .like-btn.active-support{background:var(--moss-soft); border-color:var(--moss); color:var(--moss);}
+  .like-btn.active-oppose{background:var(--seal-soft); border-color:var(--seal); color:var(--seal);}
+  .like-count{font-weight:700;}
+  .endorse-box{margin-top:10px;}
+  .reasons-block{margin-top:10px; padding-top:10px; border-top:1px dashed var(--line-strong);}
+  .reason-form{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .reason-form textarea{flex:1; min-width:200px; font-family:'IBM Plex Sans KR', sans-serif; font-size:12.5px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:3px; background:var(--bg-2); color:var(--ink); resize:vertical; min-height:44px;}
+
+  .endorsement-item{border-left:3px solid var(--line-strong); padding:8px 12px; margin:8px 0; background:var(--bg-2); border-radius:0 4px 4px 0;}
+  .endorsement-item.support{border-left-color:var(--moss);}
+  .endorsement-item.oppose{border-left-color:var(--seal);}
+  .endorsement-item.counted{background:var(--gold-soft);}
+  .endorsement-reason{font-size:12.5px; line-height:1.5; margin:3px 0 6px; color:var(--ink);}
+  .endorsement-meta{font-size:11px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;}
+
+  .new-post-card{background:var(--panel); border:1px solid var(--line-strong); border-radius:4px; padding:20px; margin-bottom:24px; box-shadow:var(--shadow);}
+  .new-post-card select, .new-post-card input, .new-post-card textarea{width:100%; font-family:'IBM Plex Sans KR', sans-serif; font-size:13.5px; padding:9px 11px; border:1px solid var(--line-strong); border-radius:3px; background:var(--bg-2); color:var(--ink); margin-bottom:12px;}
+  .new-post-card label{font-size:12.5px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;}
+  .new-post-card input[type="file"]{padding:8px; background:var(--bg-2);}
+
+  .join-card{background:var(--panel); border:1px solid var(--line-strong); border-radius:4px; padding:24px; max-width:600px; box-shadow:var(--shadow);}
+  .join-card input, .join-card textarea, .join-card select{width:100%; font-family:'IBM Plex Sans KR', sans-serif; font-size:13.5px; padding:9px 11px; border:1px solid var(--line-strong); border-radius:3px; background:var(--bg-2); color:var(--ink); margin-bottom:12px;}
+  .join-card label{font-size:12.5px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;}
+  .notice{background:var(--gold-soft); border-left:3px solid var(--gold); padding:12px 14px; font-size:12.5px; line-height:1.6; margin-bottom:18px; border-radius:0 4px 4px 0; color:var(--ink);}
+  .status-msg{font-size:12.5px; margin-top:10px; min-height:16px; font-weight:600;}
+  .status-msg.err{color:var(--seal);}
+  .status-msg.ok{color:var(--moss);}
+
+  .charter-doc{background:var(--panel); border:1px solid var(--line-strong); border-radius:4px; padding:32px 36px; box-shadow:var(--shadow);}
+  .charter-doc h3{font-family:'Source Serif 4', serif; font-size:16px; font-weight:700; color:var(--gold-bright); margin:28px 0 12px;}
+  .charter-doc h3:first-child{margin-top:0;}
+  .charter-article{font-size:13.5px; line-height:1.85; color:var(--ink); margin:0 0 12px; text-indent:-1.1em; padding-left:1.1em;}
+  .charter-article b{color:var(--gold-bright); font-weight:700;}
+
+  .tier-legend{display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin-bottom:30px;}
+  .tier-legend-item{background:var(--panel); border:1px solid var(--line-strong); border-radius:4px; padding:13px 14px; display:flex; align-items:center; gap:10px; box-shadow:var(--shadow);}
+
+  .perm-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:14px 0; border-bottom:1px solid var(--line);}
+  .perm-control{flex:none;}
+  .perm-row:last-child{border-bottom:none;}
+  .perm-label{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .perm-desc{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+  .perm-control select{font-family:'IBM Plex Sans KR', sans-serif; font-size:12.5px; padding:6px 10px; border:1px solid var(--line-strong); border-radius:3px; background:var(--bg-2); color:var(--ink);}
+
+  footer{text-align:center; padding:22px; font-size:11px; color:var(--ink-soft); border-top:1px solid var(--line);}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-start; justify-content:center; z-index:100; padding:40px 20px; overflow-y:auto;}
+  .modal-overlay.active{display:flex;}
+  .modal-box{background:var(--panel); border:1px solid var(--line-strong); border-radius:6px; max-width:720px; width:100%; padding:28px; box-shadow:var(--shadow-lg); position:relative;}
+  .modal-close{position:absolute; top:16px; right:16px; background:none; border:none; color:var(--ink-soft); font-size:20px; cursor:pointer; line-height:1;}
+  .modal-close:hover{color:var(--ink);}
+  .clickable-cell{cursor:pointer; text-decoration:underline; text-decoration-style:dotted;}
+
+  @media (max-width:680px){
+    .masthead{padding:22px 18px;}
+    main{padding:22px 18px 44px;}
+    table.ledger{font-size:12.5px;}
+    .net-status{padding:12px 18px;}
+    .config-inner{right:18px; width:calc(100vw - 60px);}
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div>
+    <div class="masthead-title">디지털자산 산업 규제개혁 협의체(RegDAO)</div>
+    <div class="masthead-sub">온체인 평판·거버넌스 현황판</div>
+  </div>
+  <div class="wallet-box">
+    <span id="walletChip" class="addr-chip" style="display:none;"></span>
+    <button id="connectBtn" class="btn">지갑 연결</button>
+    <button id="disconnectBtn" class="btn ghost" style="display:none;">연결 해제</button>
+  </div>
+</div>
+
+<div class="net-status" id="netStatus">
+  <span class="net-dot"></span>
+  <span id="netStatusText">연결 확인 중…</span>
+  <details class="admin-config">
+    <summary>관리자 설정</summary>
+    <div class="config-inner">
+      <div class="config-group"><label>RPC</label><input id="cfgRpc" /></div>
+      <div class="config-group"><label>BadgeSBT</label><input id="cfgBadge" class="mono" /></div>
+      <div class="config-group"><label>DAOGovernance</label><input id="cfgGov" class="mono" /></div>
+      <div class="config-group"><label>Charter</label><input id="cfgCharter" class="mono" /></div>
+      <div class="config-group"><label>ProposalBoard</label><input id="cfgBoard" class="mono" /></div>
+      <div class="config-group"><label>JoinRegistry (선택)</label><input id="cfgJoin" class="mono" /></div>
+      <div class="config-group"><label>MemberProfile</label><input id="cfgProfile" class="mono" /></div>
+      <div class="config-group"><label>PeerReview</label><input id="cfgPeerReview" class="mono" /></div>
+      <div class="config-group"><label>에이전트 서비스 URL (선택)</label><input id="cfgAgentUrl" placeholder="https://your-agent-service.example.com" /></div>
+      <div class="config-group"><label>Pinata JWT (첨부파일 IPFS 업로드용, 선택)</label><input id="cfgPinataJwt" placeholder="pinata.cloud에서 발급받은 JWT" /></div>
+      <div class="config-group"><label>RDAOToken</label><input id="cfgRdao" class="mono" /></div>
+      <div class="config-group"><label>MembershipFeeVault</label><input id="cfgFeeVault" class="mono" /></div>
+      <div class="config-group"><label>ProposalStakeVault</label><input id="cfgBoardStake" class="mono" /></div>
+      <div class="config-group"><label>CharterStakeVault</label><input id="cfgCharterStake" class="mono" /></div>
+      <button id="saveCfgBtn" class="btn ghost small">저장 &amp; 다시 불러오기</button>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;">
+        이 설정은 이 브라우저에만 저장됩니다. 모든 회원에게 기본 적용하려면
+        <span class="mono">dashboard/index.html</span> 상단 <span class="mono">DEFAULT_CONFIG</span>를 채워 배포하세요.
+      </div>
+    </div>
+  </details>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="about">협회 소개</div>
+  <div class="tab" data-tab="charter">정관</div>
+  <div class="tab" data-tab="board">제안마당</div>
+  <div class="tab" data-tab="published">정책제안</div>
+  <div class="tab" data-tab="membership">회원가입</div>
+  <div class="tab" data-tab="fees">회비·행사</div>
+  <div class="tab" data-tab="admin">관리자</div>
+</div>
+
+<main>
+
+  <div class="panel active" id="panel-about">
+    <h2 class="section-title">RegDAO는 무엇인가</h2>
+    <div class="proposal" style="font-size:13.5px; line-height:1.75;">
+      RegDAO는 디지털자산 산업의 규제 개선을 목표로 하는 <strong>민관협의체</strong>입니다.
+      민간 기업·전문가와 관 부문 대표가 하나의 퍼블릭 블록체인 위에서 만나, 누구나 검증 가능한 규칙에 따라
+      의사결정하고 발언할 수 있도록 설계되었습니다. 중앙 서버나 특정 관리자의 자의적 판단이 아니라,
+      <strong>온체인에 기록된 정관과 스마트컨트랙트</strong>가 협의체 운영의 근거가 됩니다.
+    </div>
+
+    <h2 class="section-title" style="margin-top:28px;">신뢰가 쌓이는 방식</h2>
+    <div class="proposal" style="font-size:13.5px; line-height:1.8;">
+      <ul style="margin:0; padding-left:20px;">
+        <li><strong>동료 지지</strong> — 이미 정회원 이상인 회원이 신규/기존 회원을 직접 추천</li>
+        <li><strong>제안마당 활동</strong> — 제안을 올리고, 찬성을 일정 수 이상 받으면 동료검토(피어리뷰) 절차로 자동 진입</li>
+        <li><strong>동료검토 통과</strong> — 운영위원 이상 에디터와 회원 리뷰어들의 검토를 거쳐, 2/3 이상 찬성 시 정식 의안으로 상정·발행</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title" style="margin-top:28px;">제안 라이프사이클</h2>
+    <div class="proposal" style="padding:24px;">
+      <svg viewBox="0 0 900 260" style="width:100%; height:auto;" xmlns="http://www.w3.org/2000/svg">
+        <rect width="900" height="260" fill="#0F1830"/>
+        <text x="450" y="30" text-anchor="middle" font-family="'Source Serif 4',serif" font-size="15" font-weight="700" fill="#F4F6FB">제안마당 상태 흐름</text>
+        <g font-family="'IBM Plex Sans KR',sans-serif" font-size="10.5" font-weight="600">
+          <rect x="20"  y="60" width="140" height="50" rx="4" fill="#233252"/><text x="90" y="90" text-anchor="middle" fill="#F4F6FB">① 제안등록</text>
+          <rect x="180" y="60" width="140" height="50" rx="4" fill="#233252"/><text x="250" y="90" text-anchor="middle" fill="#F4F6FB">② 동료검토 상신</text>
+          <rect x="340" y="60" width="140" height="50" rx="4" fill="#233252"/><text x="410" y="90" text-anchor="middle" fill="#F4F6FB">③ 동료검토 진행중</text>
+          <rect x="500" y="60" width="140" height="50" rx="4" fill="#233252"/><text x="570" y="90" text-anchor="middle" fill="#F4F6FB">④ 동료검토 완료</text>
+          <rect x="670" y="35" width="200" height="46" rx="4" fill="#3a2c17" stroke="#D4B15C"/><text x="770" y="63" text-anchor="middle" fill="#E8CB84">⑤-A 의안상정 (2/3+ 찬성)</text>
+          <rect x="670" y="95" width="200" height="46" rx="4" fill="#3a1c18" stroke="#E0685A"/><text x="770" y="123" text-anchor="middle" fill="#E0685A">⑤-B 의안상정보류</text>
+        </g>
+        <g stroke="#33456B" stroke-width="1.5" fill="none" marker-end="url(#arrow2)">
+          <path d="M160,85 L178,85"/><path d="M320,85 L338,85"/><path d="M480,85 L498,85"/>
+          <path d="M640,80 L668,58"/><path d="M640,90 L668,118"/>
+        </g>
+        <defs><marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#33456B"/></marker></defs>
+        <text x="450" y="165" text-anchor="middle" font-size="11" fill="#A9B4CE" font-family="'IBM Plex Sans KR',sans-serif">찬성이 임계값을 넘으면 자동으로 운영위원 이상 에디터가 배정되고, 리뷰어 3인 이상이 비공개로 검토합니다.</text>
+        <text x="450" y="185" text-anchor="middle" font-size="11" fill="#A9B4CE" font-family="'IBM Plex Sans KR',sans-serif">의안상정된 제안만 전문을 조회·다운로드할 수 있습니다.</text>
+        <text x="450" y="220" text-anchor="middle" font-size="10.5" fill="#5FBF8C" font-family="'IBM Plex Sans KR',sans-serif" font-weight="700">등급: 참관 · 정회원-동/은/금 · 운영위원 · 원로</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-charter">
+    <h2 class="section-title">정관</h2>
+    <div class="section-desc">협의체 운영의 근거 조항입니다. 정관 개정은 운영위원 이상만 제안 가능하며, 일반 안건보다 더 엄격한 가중 정족수를 요구합니다.</div>
+
+    <div class="sub-tabs">
+      <div class="sub-tab active" data-subtab="charter-view">정관조회</div>
+      <div class="sub-tab" data-subtab="charter-amend">정관개정 제안 및 조회</div>
+    </div>
+
+    <div class="sub-panel active" id="subpanel-charter-view">
+      <div class="stat-row" style="margin:20px 0 24px;">
+        <div class="stat"><div class="stat-num" id="charterQuorumNormal">—</div><div class="stat-label">일반 안건 정족수</div></div>
+        <div class="stat"><div class="stat-num" id="charterQuorumAmend">—</div><div class="stat-label">정관 개정 정족수 (가중)</div></div>
+        <div class="stat"><div class="stat-num" id="charterPeriodNormal">—</div><div class="stat-label">일반 안건 투표기간</div></div>
+        <div class="stat"><div class="stat-num" id="charterPeriodAmend">—</div><div class="stat-label">정관 개정 투표기간</div></div>
+      </div>
+      <div class="charter-doc" id="charterDocWrap">불러오는 중…</div>
+    </div>
+
+    <div class="sub-panel" id="subpanel-charter-amend">
+      <h2 class="section-title" style="margin-top:20px;">정관 개정 제안 만들기</h2>
+      <div class="section-desc">운영위원 이상만 제출 가능합니다. 지갑 연결이 필요합니다.</div>
+      <div class="join-card">
+        <label>개정 항목</label>
+        <select id="amendField">
+          <option value="quorumNormal">일반 안건 정족수 (quorumNormal)</option>
+          <option value="quorumAmendment">정관 개정 정족수 (quorumAmendment)</option>
+          <option value="votingPeriodNormal">일반 안건 투표기간(초)</option>
+          <option value="votingPeriodAmendment">정관 개정 투표기간(초)</option>
+        </select>
+        <label>새 값</label>
+        <input id="amendValue" placeholder="예: 7" />
+        <label>제안 설명</label>
+        <textarea id="amendDesc" rows="2" placeholder="개정 사유를 적어주세요"></textarea>
+        <button id="submitAmendBtn" class="btn seal">정관 개정 제안 제출</button>
+        <div class="status-msg" id="amendStatusMsg"></div>
+      </div>
+
+      <h2 class="section-title" style="margin-top:28px;">정관 개정 제안 현황</h2>
+      <div id="charterAmendmentsWrap"><div class="empty-state">불러오는 중…</div></div>
+
+      <h2 class="section-title" style="margin-top:28px;">개정 이력</h2>
+      <div id="charterHistory"><div class="empty-state">불러오는 중…</div></div>
+    </div>
+  </div>
+
+
+  <div class="panel" id="panel-board">
+    <h2 class="section-title">제안마당</h2>
+    <div class="section-desc">
+      규제개선 제안, 업계 애로사항, 세미나 연사 초빙, 언론 기고 등 다양한 기여를 자유롭게 올리는 공간입니다.
+      찬성이 일정 수 이상 모이면 자동으로 동료검토(피어리뷰) 절차로 넘어가고, 운영위원 이상 에디터와 회원 리뷰어들의
+      검토를 거쳐 2/3 이상 찬성이면 정식 의안으로 상정됩니다. "동료검토" 칸을 클릭하면 진행 현황을 볼 수 있습니다.
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+      <button class="btn dark" onclick="openNewPostModal()">✏️ 새글작성</button>
+    </div>
+
+    <div id="postsWrap"><div class="empty-state">불러오는 중…</div></div>
+  </div>
+
+  <div class="panel" id="panel-published">
+    <h2 class="section-title">정책제안</h2>
+    <div class="section-desc">동료검토에서 2/3 이상 찬성으로 의안상정된 안건의 원문·찬성의견·동의의견·첨부파일입니다. 지갑 연결 없이 누구나 열람할 수 있습니다.</div>
+    <div id="publishedWrap"><div class="empty-state">불러오는 중…</div></div>
+  </div>
+
+  <div class="panel" id="panel-membership">
+    <h2 class="section-title">회원가입</h2>
+    <div class="section-desc">가입 신청, 신청 심사 현황, 내 프로필 관리를 한 곳에서 처리합니다.</div>
+
+    <div class="sub-tabs">
+      <div class="sub-tab active" data-subtab="m-apply">가입 신청</div>
+      <div class="sub-tab" data-subtab="m-status">신청 현황</div>
+      <div class="sub-tab" data-subtab="m-profile">내 프로필</div>
+      <div class="sub-tab" data-subtab="m-members">회원명부</div>
+    </div>
+
+    <div class="sub-panel active" id="subpanel-m-apply">
+      <div id="joinFallback" style="display:none;" class="notice">
+        JoinRegistry 컨트랙트가 아직 설정되지 않았습니다. 지금은 아래 안내에 따라 <strong>수동으로</strong> 신청해주세요.
+        <ol style="margin:10px 0 0; padding-left:18px;">
+          <li>메타마스크에서 본인 지갑 주소를 복사합니다.</li>
+          <li>협의체 운영기관(등록기관)에 소속·가입 사유와 함께 주소를 제출합니다.</li>
+          <li>심사 후 운영기관이 <span class="mono">BadgeSBT.mint()</span>를 호출하면 Observer 배지가 발급됩니다.</li>
+        </ol>
+      </div>
+
+      <div id="joinRegistryUI" style="display:none;">
+        <div class="join-card">
+          <label>성명 (실명)</label>
+          <input id="joinName" placeholder="예: 홍길동" />
+          <label>연락처</label>
+          <input id="joinContact" placeholder="예: 010-1234-5678 또는 이메일" />
+          <label>소속 (민간 기관명 / 관 부서명 등)</label>
+          <input id="joinOrg" placeholder="예: OO시민연대, OO구청 정책과" />
+          <label>전문 분야</label>
+          <input id="joinExpertise" placeholder="예: 스테이블코인 규제, 조세법, 블록체인 보안" />
+          <label>전문 분야 경력 (년)</label>
+          <input id="joinYears" type="number" min="0" placeholder="예: 7" />
+          <label>논문·저서·기타 공인된 실적·자격증</label>
+          <textarea id="joinCredentials" rows="3" placeholder="예: OO학회 논문 3편, 변호사 자격증, 저서 「디지털자산 규제론」 등"></textarea>
+          <label>가입 사유 / 소개</label>
+          <textarea id="joinReason" rows="3" placeholder="협의체 참여 목적을 간단히 적어주세요"></textarea>
+
+          <div class="notice" style="margin-top:4px;">
+            <strong>간이 실명확인</strong> — 신원 위조 방지를 위해 성명을 한 번 더 입력받아 대조합니다.
+            (정식 본인인증이 아닌 자기서명 방식의 간이 확인이며, 최종 확인은 운영기관 심사 단계에서 이루어집니다.)
+          </div>
+          <label>성명 재입력 (위와 정확히 동일하게)</label>
+          <input id="joinNameConfirm" placeholder="성명을 다시 입력해주세요" />
+          <label style="display:flex; align-items:flex-start; gap:8px; font-weight:400; margin-top:4px;">
+            <input type="checkbox" id="joinAttest" style="width:auto; margin:2px 0 0;" />
+            <span>본인은 위에 기재한 정보가 사실이며, 본인의 실명임을 확인합니다.</span>
+          </label>
+
+          <button id="submitJoinBtn" class="btn seal" style="margin-top:14px;">가입 신청 제출</button>
+          <div class="status-msg" id="joinStatusMsg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-panel" id="subpanel-m-status">
+      <div class="section-desc">접수된 가입 신청과 심사 진행 상황입니다. 각 신청에는 운영위원 이상 회원 중 무작위로 심사 담당자가 배정되며, 승인/반려는 관리자 또는 배정된 담당자만 처리할 수 있습니다.</div>
+      <div id="applicationsWrap"><div class="empty-state">불러오는 중…</div></div>
+    </div>
+
+    <div class="sub-panel" id="subpanel-m-profile">
+      <div id="profileNeedsWallet" class="notice">본인의 프로필은 지갑 연결 후에만 조회·수정할 수 있습니다. 다른 회원의 프로필은 볼 수 없습니다.</div>
+      <div id="profileFormWrap" style="display:none;">
+        <div class="section-desc">관심분야·소개·이메일·휴대폰 번호를 등록해두면, 피어리뷰·가입심사 AI 에이전트가 안건과 매칭하거나 무작위 배정 시 이메일·문자로 자동 통지합니다. <strong>이메일과 휴대폰 번호는 필수</strong>입니다.</div>
+        <div class="join-card">
+          <label>소개</label>
+          <textarea id="profileBio" rows="3" placeholder="예: 스테이블코인 규제 및 과세 전문, OO법무법인 소속 변호사"></textarea>
+          <label>관심분야 (쉼표로 구분)</label>
+          <input id="profileInterests" placeholder="예: 스테이블코인, 과세, 커스터디, 국제 규제동향" />
+          <label>이메일 (필수)</label>
+          <input id="profileEmail" placeholder="you@example.com" />
+          <label>휴대폰 번호 (필수, 국가코드 포함 권장)</label>
+          <input id="profilePhone" placeholder="예: +821012345678" />
+          <button id="submitProfileBtn" class="btn dark">프로필 저장</button>
+          <div class="status-msg" id="profileStatusMsg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-panel" id="subpanel-m-members">
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num" id="statTotal">—</div><div class="stat-label">총 회원수</div></div>
+        <div class="stat"><div class="stat-num" id="statActive">—</div><div class="stat-label">활동 중 회원</div></div>
+        <div class="stat"><div class="stat-num" id="statCouncil">—</div><div class="stat-label">운영위원 이상</div></div>
+        <div class="stat"><div class="stat-num" id="statRevoked">—</div><div class="stat-label">자격 박탈(슬래싱)</div></div>
+      </div>
+
+      <h2 class="section-title" style="margin-top:24px;">등급 체계</h2>
+      <div class="section-desc">모든 신뢰 축적(동료 지지·제안마당 활동)은 하나의 포인트로 합산되고, 등급은 포인트 구간에 따라 자동 산정됩니다.</div>
+      <div class="tier-legend" id="tierLegend"></div>
+
+      <h2 class="section-title">등급 분포</h2>
+      <table class="ledger" id="levelDistTable"><thead><tr><th>등급</th><th>인원</th><th style="width:45%;">비율</th></tr></thead><tbody></tbody></table>
+
+      <h2 class="section-title" style="margin-top:28px;">전체 회원 목록</h2>
+      <div id="membersWrap"><div class="empty-state">불러오는 중…</div></div>
+
+      <h2 class="section-title" style="margin-top:28px;">제재(슬래싱) 제안 현황</h2>
+      <div class="section-desc">어뷰징이 확인된 회원에 대한 등급 강등 제안입니다. 반드시 투표를 거쳐야 집행됩니다.</div>
+      <div id="slashProposalsWrap"><div class="empty-state">불러오는 중…</div></div>
+    </div>
+  </div>
+
+  <!-- ===================== 회비·행사 (공통 메뉴) ===================== -->
+  <div class="panel" id="panel-fees">
+    <h2 class="section-title">회비·행사</h2>
+    <div class="section-desc">
+      협회 내부 유틸리티 토큰 <b style="color:var(--gold-bright);">RDAO</b>로 연회비를 납부하고 세미나·행사 참가비를 결제합니다.
+      납부금은 협회 운영 계정(관리자 지갑)으로 귀속됩니다.
+      <span style="color:var(--seal);">※ RDAO는 원화 등 법정통화와 교환이 보장되지 않는 협회 내부 토큰입니다.</span>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num" id="myRdaoBalance">—</div><div class="stat-label">내 RDAO 잔액</div></div>
+      <div class="stat"><div class="stat-num" id="myFeeStatus">—</div><div class="stat-label">연회비 상태</div></div>
+    </div>
+
+    <h2 class="section-title" style="margin-top:8px;">연회비 납부</h2>
+    <div class="join-card">
+      <div style="font-size:13px;margin-bottom:10px;">연회비: <b id="annualFeeDisplay" class="mono">—</b> RDAO / 1년</div>
+      <button id="payFeeBtn" class="btn seal">연회비 납부</button>
+      <div class="status-msg" id="feeStatusMsg"></div>
+    </div>
+
+    <h2 class="section-title" style="margin-top:28px;">행사(세미나 등) 목록</h2>
+    <div id="eventsWrap"><div class="empty-state">불러오는 중…</div></div>
+
+    <div id="adminEventCreateWrap" style="display:none;">
+      <h2 class="section-title" style="margin-top:28px;">행사 등록 (관리자 전용)</h2>
+      <div class="join-card">
+        <label>행사명</label>
+        <input id="newEventName" placeholder="예: 2026년 하반기 정기세미나 개최" />
+        <label>참가비 (RDAO)</label>
+        <input id="newEventFee" type="number" min="0" placeholder="예: 10" />
+        <button id="createEventBtn" class="btn dark">행사 등록</button>
+        <div class="status-msg" id="eventCreateStatusMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-admin">
+    <h2 class="section-title">관리자 설정 — 쓰기 작업 자격 조건</h2>
+    <div class="section-desc">
+      각 작업을 누가 수행할 수 있는지 여기서 정할 수 있습니다. <strong>기본값은 "누구나(배지 보유자 전체)"</strong>입니다.
+      이 설정은 대시보드 UI 단에서 안내·차단하는 참고 기준이며, 등급 요건이 이미 스마트컨트랙트에 고정된 작업
+      (정관 개정=운영위원 이상, 슬래싱 제안 등)은 여기서 더 완화할 수 없고 강화만 가능합니다.
+    </div>
+    <div class="proposal" id="permissionPanel"></div>
+    <div class="status-msg" id="permStatusMsg"></div>
+  </div>
+
+</main>
+
+<footer>온체인 데이터를 직접 조회하여 표시합니다 · 관리자 승인 등 쓰기 작업은 지갑 연결이 필요합니다</footer>
+
+<!-- 범용 모달 (동료검토 진행현황 등 팝업 표시용) -->
+<div class="modal-overlay" id="genericModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="genericModalContent"></div>
+  </div>
+</div>
+
+<!-- 새 글 작성 모달 -->
+<div class="modal-overlay" id="newPostModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeNewPostModal()">✕</button>
+    <h2 class="section-title">새 제안 작성</h2>
+    <div class="new-post-card" style="box-shadow:none;border:none;padding:0;margin:0;">
+      <label>카테고리</label>
+      <select id="newPostCategory">
+        <option value="0">규제개선 제안</option>
+        <option value="1">업계 애로사항</option>
+        <option value="2">세미나 연사 초빙</option>
+        <option value="3">언론 기고</option>
+        <option value="4">기타 기여</option>
+      </select>
+      <label>제목</label>
+      <input id="newPostTitle" placeholder="제목을 입력하세요" />
+      <label>내용</label>
+      <textarea id="newPostContent" rows="4" placeholder="내용을 입력하세요"></textarea>
+      <label>첨부파일 (선택, IPFS에 업로드됩니다)</label>
+      <input type="file" id="newPostFile" />
+      <div id="newPostFileInfo" style="font-size:11px;color:var(--ink-soft);margin:-6px 0 8px;"></div>
+      <label>또는 첨부 링크 직접 입력 (이미 업로드된 IPFS/외부 문서 링크가 있다면)</label>
+      <input id="newPostAttachmentUrl" placeholder="https://ipfs.io/ipfs/... 또는 기타 문서 링크" />
+      <button id="submitPostBtn" class="btn dark">게시글 작성</button>
+      <div class="status-msg" id="postStatusMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_CONFIG = {
+  rpc: "https://ethereum-sepolia-rpc.publicnode.com",
+  badge: "0x1fA6eC9855C112Fc02298C0ADcFF1d1541264bBB",
+  gov: "0xdbed530B8031BeF88a52380F4f9FCbdF4585c94F",
+  charter: "0x1010a4622151865AC1E95641340af0881d0241B9",
+  board: "0xC016E23e469a98AE0892e311561d96794C4983C0",
+  join: "0x731abE13954329aE621D3E29D60781D761E881f9",
+  profile: "0x5B6A4d6378e7EE2C82B569bd5fD2D1820AeDb2a6",
+  peerReview: "0x6064e87dEbd48a76261147C38Adf1223FD6260b2",
+  agentUrl: ""
+};
+
+const TIER_NAMES = ["Observer","Member-Bronze","Member-Silver","Member-Gold","Council","Elder"];
+const TIER_KO = ["참관","정회원-동","정회원-은","정회원-금","운영위원","원로"];
+const STATE_NAMES = ["대기","투표중","부결","가결","집행완료","취소됨"];
+const STATE_PILL = ["pill-neutral","pill-pending","pill-revoked","pill-pending","pill-active","pill-neutral"];
+const TYPE_LABELS = ["일반 안건", "슬래싱 제안", "정관 개정", "성과 인증"];
+const TYPE_PILLS = ["pill-neutral", "pill-revoked", "pill-pending", "pill-active"];
+const CATEGORY_LABELS = ["규제개선 제안","업계 애로사항","세미나 연사 초빙","언론 기고","기타 기여"];
+const CASE_STATUS_NAMES = ["동료검토 상신","동료검토 진행중(리뷰어 모집)","동료검토 진행중(심사중)","의안상정","의안상정보류","발행됨","취소됨"];
+const CASE_STATUS_PILL = ["pill-pending","pill-pending","pill-pending","pill-active","pill-revoked","pill-active","pill-neutral"];
+const INVITE_STATUS_NAMES = ["초대됨","수락함","거절함","시간초과"];
+const CASE_TYPE_NAMES = ["정책제안", "성과주장"];
+
+const PERMISSION_ACTIONS = [
+  { key: "post_write",  label: "제안마당 글 작성",   desc: "새 제안(게시글)을 올릴 수 있는 자격", onchain: false, onchainNote: "컨트랙트는 배지 보유 여부만 확인합니다. 여기서 등급을 더 올려도 컨트랙트가 이를 추가로 강제하지 않습니다." },
+  { key: "post_view",   label: "제안마당 조회",      desc: "게시글·근거 목록을 열람할 수 있는 자격", onchain: false, onchainNote: "온체인 데이터는 누구나 조회 가능한 공개 정보라, 이 설정은 화면 표시 여부에만 참고됩니다." },
+  { key: "endorse",     label: "지지/반대 표시",     desc: "제안에 찬성·반대와 근거를 남길 수 있는 자격", onchain: false, onchainNote: "컨트랙트는 배지 보유 여부만 확인합니다. 등급 상향은 UI 참고용입니다." },
+  { key: "charter_amend", label: "정관 개정 제안",   desc: "정관 개정을 제안할 수 있는 자격", onchain: true, onchainNote: "DAOGovernance 컨트랙트가 운영위원(Tier 4) 이상을 직접 강제합니다. 여기서 더 낮출 수 없습니다." },
+  { key: "join_apply",  label: "가입 신청",          desc: "신규 가입 신청서를 제출할 수 있는 자격", onchain: true, onchainNote: "JoinRegistry 컨트랙트가 이미 배지를 보유한 주소, 과거 승인 이력이 있는 주소의 재신청을 직접 차단합니다." },
+];
+const PERMISSION_LEVELS = [
+  { value: "anyone", label: "누구나 (배지 불필요)" },
+  { value: "member",  label: "배지 보유 회원만" },
+  { value: "bronze",  label: "정회원-동 이상" },
+  { value: "council",  label: "운영위원 이상" },
+];
+
+let readProvider, browserProvider, signer, signerAddress = null;
+let badgeRead, govRead, joinRead, charterRead, boardRead, profileRead, peerReviewRead;
+let badgeWrite, govWrite, joinWrite, charterWrite, boardWrite, profileWrite, peerReviewWrite;
+let rdaoRead, feeVaultRead, boardStakeRead, charterStakeRead;
+let rdaoWrite, feeVaultWrite, boardStakeWrite, charterStakeWrite;
+let rdaoDecimals = 18;
+let allEndorsements = [];
+let peerReviewBySourcePost = {};
+let allProposalsCache = [];
+
+function short(a){ return a ? a.slice(0,6)+"…"+a.slice(-4) : ""; }
+
+function friendlyError(e){
+  const raw = (e && (e.reason || e.shortMessage || e.message)) || "알 수 없는 오류";
+  const map = [
+    [/already a registered member/i, "이미 가입된 회원입니다. 중복으로 가입할 수 없습니다."],
+    [/already been approved before/i, "이미 과거에 승인된 이력이 있는 주소입니다."],
+    [/already have a pending application|pending application/i, "이미 처리 대기 중인 가입 신청이 있습니다."],
+    [/already endorsed/i, "이미 지지한 대상입니다. 중복으로 지지할 수 없습니다."],
+    [/already upheld/i, "이미 동의(uphold)한 근거입니다."],
+    [/cannot endorse your own/i, "본인 게시글/댓글에는 지지·반대할 수 없습니다."],
+    [/cannot uphold your own/i, "본인이 남긴 근거에는 동의할 수 없습니다."],
+    [/substantive reason is required/i, "근거는 최소 10자 이상 구체적으로 작성해야 합니다."],
+    [/badge holders only/i, "배지를 보유한 회원만 이용할 수 있습니다. 먼저 가입이 필요합니다."],
+    [/insufficient badge level|insufficient badge level to propose/i, "이 작업을 수행할 등급 요건을 충족하지 못했습니다."],
+    [/Council\+ required/i, "정관 개정 제안은 운영위원 등급 이상만 가능합니다."],
+    [/endorse cooldown active/i, "지지 쿨다운 시간이 아직 지나지 않았습니다. 잠시 후 다시 시도해주세요."],
+    [/cannot self-endorse/i, "본인은 지지할 수 없습니다."],
+    [/no such application/i, "존재하지 않는 신청입니다."],
+    [/already been approved|already approved/i, "이미 승인 처리된 신청입니다."],
+    [/already rejected/i, "이미 반려 처리된 신청입니다."],
+    [/user rejected|ACTION_REJECTED/i, "지갑에서 트랜잭션 서명을 취소했습니다."],
+    [/insufficient funds/i, "가스비가 부족합니다. 지갑 잔액을 확인해주세요."],
+    [/chief editor must be Council\+/i, "주에디터는 운영위원 등급 이상이어야 합니다."],
+    [/reviewer must be a member/i, "리뷰어는 배지를 보유한 회원이어야 합니다."],
+    [/editors cannot be reviewers/i, "에디터는 해당 케이스의 리뷰어가 될 수 없습니다."],
+    [/claimant cannot review their own case/i, "본인이 제안한 안건은 직접 리뷰할 수 없습니다."],
+    [/already invited/i, "이미 초대된 리뷰어입니다."],
+    [/invite already resolved/i, "이미 응답 처리된 초대입니다."],
+    [/only adopted agendas/i, "2/3 이상 찬성으로 의안상정된 케이스만 발행할 수 있습니다."],
+    [/editors only/i, "이 케이스의 에디터만 발행할 수 있습니다."],
+    [/not your invite slot/i, "본인에게 배정된 리뷰 슬롯이 아닙니다."],
+    [/you have not accepted this invite/i, "아직 수락하지 않은 리뷰 초대입니다."],
+    [/review already submitted/i, "이미 리뷰를 제출했습니다."],
+    [/email is required/i, "이메일은 필수 입력 항목입니다."],
+    [/phone number is required/i, "휴대폰 번호는 필수 입력 항목입니다."],
+    [/only admin or the assigned reviewer/i, "이 신청은 관리자 또는 배정된 심사 담당자만 처리할 수 있습니다."],
+    [/reviewer must meet minimum founder tier/i, "심사 담당자는 운영위원 등급 이상이어야 합니다."],
+    [/application already resolved/i, "이미 처리 완료된 신청입니다."],
+    [/insufficient allowance|ERC20InsufficientAllowance/i, "RDAO 사용 승인(approve)이 부족합니다. 다시 시도해주세요."],
+    [/insufficient balance|ERC20InsufficientBalance|transfer amount exceeds balance/i, "RDAO 잔액이 부족합니다."],
+    [/event not active/i, "마감되었거나 비활성화된 행사입니다."],
+    [/already paid for this event/i, "이미 참가비를 결제한 행사입니다."],
+    [/only the post author can stake/i, "글쓴이 본인만 예치금을 걸 수 있습니다."],
+    [/already staked for this post|already staked/i, "이미 이 제안에 예치금을 걸었습니다."],
+    [/no active stake to resolve|no active stake/i, "정산할 예치금이 없습니다."],
+    [/case not yet decided|proposal not yet finally decided/i, "아직 결과가 확정되지 않아 정산할 수 없습니다."],
+    [/only the proposer can stake/i, "제안자 본인만 예치금을 걸 수 있습니다."],
+    [/badge tier too low to propose/i, "이 작업을 수행하려면 더 높은 등급이 필요합니다."],
+  ];
+  for(const [pattern, msg] of map){ if(pattern.test(raw)) return msg; }
+  return "요청 실패: " + raw;
+}
+
+function loadPermissions(){
+  try{
+    const raw = localStorage.getItem("dao_permissions");
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  const defaults = {};
+  PERMISSION_ACTIONS.forEach(a => defaults[a.key] = "anyone");
+  return defaults;
+}
+
+function renderPermissionPanel(){
+  const perms = loadPermissions();
+  const wrap = document.getElementById("permissionPanel");
+  wrap.innerHTML = PERMISSION_ACTIONS.map(a => `
+    <div class="perm-row">
+      <div>
+        <div class="perm-label">${a.label}
+          ${a.onchain
+            ? '<span class="badge-pill pill-active" style="margin-left:8px;">✅ 온체인 강제됨</span>'
+            : '<span class="badge-pill pill-pending" style="margin-left:8px;">⚠️ UI 참고용 (온체인 미반영)</span>'}
+        </div>
+        <div class="perm-desc">${a.desc}</div>
+        <div class="perm-desc" style="margin-top:3px;font-style:italic;">${a.onchainNote}</div>
+      </div>
+      <div class="perm-control">
+        <select data-permkey="${a.key}">
+          ${PERMISSION_LEVELS.map(l => `<option value="${l.value}" ${perms[a.key]===l.value?'selected':''}>${l.label}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+  `).join("") + `<button class="btn dark" id="savePermsBtn" style="margin-top:16px;">저장</button>`;
+
+  document.getElementById("savePermsBtn").addEventListener("click", ()=>{
+    const updated = {};
+    wrap.querySelectorAll("select[data-permkey]").forEach(sel => { updated[sel.dataset.permkey] = sel.value; });
+    localStorage.setItem("dao_permissions", JSON.stringify(updated));
+    const msg = document.getElementById("permStatusMsg");
+    msg.textContent = "저장되었습니다."; msg.className = "status-msg ok";
+  });
+}
+
+function loadCfg(){
+  const rpc = localStorage.getItem("dao_rpc") || DEFAULT_CONFIG.rpc;
+  const badge = localStorage.getItem("dao_badge") || DEFAULT_CONFIG.badge;
+  const gov = localStorage.getItem("dao_gov") || DEFAULT_CONFIG.gov;
+  const charter = localStorage.getItem("dao_charter") || DEFAULT_CONFIG.charter;
+  const board = localStorage.getItem("dao_board") || DEFAULT_CONFIG.board;
+  const join = localStorage.getItem("dao_join") || DEFAULT_CONFIG.join;
+  const profileAddr = localStorage.getItem("dao_profile") || DEFAULT_CONFIG.profile;
+  const peerReviewAddr = localStorage.getItem("dao_peerreview") || DEFAULT_CONFIG.peerReview;
+  const agentUrl = localStorage.getItem("dao_agenturl") || DEFAULT_CONFIG.agentUrl;
+  const pinataJwt = localStorage.getItem("dao_pinata_jwt") || "";
+  const rdaoAddr = localStorage.getItem("dao_rdao") || "";
+  const feeVaultAddr = localStorage.getItem("dao_feevault") || "";
+  const boardStakeAddr = localStorage.getItem("dao_boardstake") || "";
+  const charterStakeAddr = localStorage.getItem("dao_charterstake") || "";
+  document.getElementById("cfgRpc").value = rpc;
+  document.getElementById("cfgBadge").value = badge;
+  document.getElementById("cfgGov").value = gov;
+  document.getElementById("cfgCharter").value = charter;
+  document.getElementById("cfgBoard").value = board;
+  document.getElementById("cfgJoin").value = join;
+  document.getElementById("cfgProfile").value = profileAddr;
+  document.getElementById("cfgPeerReview").value = peerReviewAddr;
+  document.getElementById("cfgAgentUrl").value = agentUrl;
+  document.getElementById("cfgPinataJwt").value = pinataJwt;
+  document.getElementById("cfgRdao").value = rdaoAddr;
+  document.getElementById("cfgFeeVault").value = feeVaultAddr;
+  document.getElementById("cfgBoardStake").value = boardStakeAddr;
+  document.getElementById("cfgCharterStake").value = charterStakeAddr;
+  return {rpc, badge, gov, charter, board, join, profile: profileAddr, peerReview: peerReviewAddr, agentUrl, pinataJwt,
+    rdao: rdaoAddr, feeVault: feeVaultAddr, boardStake: boardStakeAddr, charterStake: charterStakeAddr};
+}
+
+function saveCfg(){
+  localStorage.setItem("dao_rpc", document.getElementById("cfgRpc").value.trim());
+  localStorage.setItem("dao_badge", document.getElementById("cfgBadge").value.trim());
+  localStorage.setItem("dao_gov", document.getElementById("cfgGov").value.trim());
+  localStorage.setItem("dao_charter", document.getElementById("cfgCharter").value.trim());
+  localStorage.setItem("dao_board", document.getElementById("cfgBoard").value.trim());
+  localStorage.setItem("dao_join", document.getElementById("cfgJoin").value.trim());
+  localStorage.setItem("dao_profile", document.getElementById("cfgProfile").value.trim());
+  localStorage.setItem("dao_peerreview", document.getElementById("cfgPeerReview").value.trim());
+  localStorage.setItem("dao_agenturl", document.getElementById("cfgAgentUrl").value.trim());
+  localStorage.setItem("dao_pinata_jwt", document.getElementById("cfgPinataJwt").value.trim());
+  localStorage.setItem("dao_rdao", document.getElementById("cfgRdao").value.trim());
+  localStorage.setItem("dao_feevault", document.getElementById("cfgFeeVault").value.trim());
+  localStorage.setItem("dao_boardstake", document.getElementById("cfgBoardStake").value.trim());
+  localStorage.setItem("dao_charterstake", document.getElementById("cfgCharterStake").value.trim());
+  init();
+}
+
+async function init(){
+  const cfg = loadCfg();
+  const statusEl = document.getElementById("netStatus");
+  const statusText = document.getElementById("netStatusText");
+  renderPermissionPanel();
+
+  if(!cfg.badge || !cfg.gov){
+    statusEl.classList.add("disconnected");
+    statusText.textContent = "컨트랙트 주소가 설정되지 않았습니다 — 관리자 설정에서 입력해주세요.";
+    document.getElementById("membersWrap").innerHTML = '<div class="empty-state">BadgeSBT / DAOGovernance 주소를 관리자 설정에서 입력하고 저장해주세요.</div>';
+    return;
+  }
+  statusEl.classList.remove("disconnected");
+  statusText.textContent = `연결됨 · ${short(cfg.badge)} (BadgeSBT) · ${short(cfg.gov)} (DAOGovernance)`;
+
+  readProvider = new ethers.JsonRpcProvider(cfg.rpc);
+  badgeRead = new ethers.Contract(cfg.badge, BADGE_ABI, readProvider);
+  govRead = new ethers.Contract(cfg.gov, GOV_ABI, readProvider);
+  if(cfg.charter) charterRead = new ethers.Contract(cfg.charter, CHARTER_ABI, readProvider);
+  if(cfg.board) boardRead = new ethers.Contract(cfg.board, BOARD_ABI, readProvider);
+  if(cfg.profile) profileRead = new ethers.Contract(cfg.profile, PROFILE_ABI, readProvider);
+  if(cfg.peerReview) peerReviewRead = new ethers.Contract(cfg.peerReview, PEER_REVIEW_ABI, readProvider);
+  if(cfg.join){
+    joinRead = new ethers.Contract(cfg.join, JOIN_ABI, readProvider);
+    document.getElementById("joinFallback").style.display = "none";
+    document.getElementById("joinRegistryUI").style.display = "block";
+  } else {
+    joinRead = null;
+    document.getElementById("joinFallback").style.display = "block";
+    document.getElementById("joinRegistryUI").style.display = "none";
+  }
+  if(cfg.rdao) rdaoRead = new ethers.Contract(cfg.rdao, RDAO_ABI, readProvider);
+  if(cfg.feeVault) feeVaultRead = new ethers.Contract(cfg.feeVault, FEE_VAULT_ABI, readProvider);
+  if(cfg.boardStake) boardStakeRead = new ethers.Contract(cfg.boardStake, BOARD_STAKE_ABI, readProvider);
+  if(cfg.charterStake) charterStakeRead = new ethers.Contract(cfg.charterStake, CHARTER_STAKE_ABI, readProvider);
+
+  renderTierLegend();
+
+  await Promise.all([
+    loadMembers(),
+    loadProposalsCache(),
+    cfg.join ? loadApplications() : Promise.resolve(),
+    cfg.charter ? loadCharter() : Promise.resolve(),
+    cfg.board ? loadBoard() : Promise.resolve(),
+    cfg.peerReview ? loadPeerReview() : Promise.resolve(),
+    loadMyProfile(),
+    cfg.feeVault ? loadFees() : Promise.resolve()
+  ]);
+}
+
+function renderTierLegend(){
+  const wrap = document.getElementById("tierLegend");
+  wrap.innerHTML = TIER_KO.map((name,i) =>
+    `<div class="tier-legend-item"><span class="tier-swatch tier-${i}"></span><div><div class="tier-label">${name}</div><div class="tier-sub">${TIER_NAMES[i]}</div></div></div>`
+  ).join("");
+}
+function tierGlyph(tier){
+  return `<span class="seal-glyph"><span class="tier-swatch tier-${tier}"></span>
+    <span><span class="tier-label">${TIER_KO[tier]}</span><br/><span class="tier-sub">${TIER_NAMES[tier]}</span></span></span>`;
+}
+
+async function loadMembers(){
+  const rows = [];
+  const tierCounts = [0,0,0,0,0,0];
+  let tokenId = 1;
+  const MAX_SCAN = 2000;
+  while(tokenId <= MAX_SCAN){
+    let owner;
+    try { owner = await badgeRead.ownerOfBadge(tokenId); }
+    catch(e){ break; }
+    if(!owner || owner === ethers.ZeroAddress){ break; }
+    let tier = 0, active = false, pts = 0n;
+    try {
+      active = await badgeRead.isMember(owner);
+      if(active){ tier = await badgeRead.tierOf(owner); pts = await badgeRead.pointsOf(owner); }
+    } catch(e){}
+    rows.push({tokenId, owner, tier, active, pts});
+    if(active) tierCounts[Number(tier)] += 1;
+    tokenId++;
+  }
+
+  const total = rows.length;
+  const activeCount = rows.filter(r=>r.active).length;
+  const council = rows.filter(r=>r.active && Number(r.tier) >= 4).length;
+  const revoked = rows.filter(r=>!r.active).length;
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statActive").textContent = activeCount;
+  document.getElementById("statCouncil").textContent = council;
+  document.getElementById("statRevoked").textContent = revoked;
+
+  const distBody = document.querySelector("#levelDistTable tbody");
+  distBody.innerHTML = "";
+  for(let t=5; t>=0; t--){
+    const count = tierCounts[t]||0;
+    const pct = activeCount ? Math.round(count/activeCount*100) : 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${tierGlyph(t)}</td><td>${count}명</td>
+      <td><div style="background:var(--line); height:8px; border-radius:4px; overflow:hidden;">
+      <div style="width:${pct}%; background:var(--gold); height:8px;"></div></div></td>`;
+    distBody.appendChild(tr);
+  }
+
+  const wrap = document.getElementById("membersWrap");
+  if(rows.length === 0){ wrap.innerHTML = '<div class="empty-state">아직 발급된 배지가 없습니다.</div>'; return; }
+  let thresholds = [0,100,300,600,1200,2500];
+  try {
+    thresholds = [];
+    for(let i=0;i<6;i++){ thresholds.push(Number(await badgeRead.tierThresholds(i))); }
+  } catch(e){}
+
+  let html = '<table class="ledger"><thead><tr><th>#</th><th>주소</th><th>등급</th><th>포인트</th><th>상태</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    let ptsCell = '—';
+    if(r.active){
+      const t = Number(r.tier);
+      const cur = Number(r.pts);
+      const next = t < 5 ? thresholds[t+1] : null;
+      const floor = thresholds[t];
+      const pct = next ? Math.min(100, Math.round((cur-floor)/(next-floor)*100)) : 100;
+      ptsCell = `<div class="points-bar-wrap"><div class="points-bar"><div class="points-bar-fill" style="width:${pct}%"></div></div>
+        <div class="points-text">${cur}pt${next ? ' / 다음 '+next+'pt' : ' (최고 등급)'}</div></div>`;
+    }
+    html += `<tr><td class="mono">${r.tokenId}</td><td class="mono">${short(r.owner)}</td><td>${tierGlyph(r.active ? Number(r.tier) : 0)}</td><td>${ptsCell}</td>
+      <td>${r.active ? '<span class="badge-pill pill-active">활동중</span>' : '<span class="badge-pill pill-revoked">자격박탈</span>'}</td></tr>`;
+  });
+  html += "</tbody></table>";
+  wrap.innerHTML = html;
+}
+
+async function loadProposalsCache(){
+  const count = Number(await govRead.proposalCount());
+  allProposalsCache = [];
+  for(let id = 1; id <= count; id++){
+    const p = await govRead.proposals(id);
+    const state = Number(await govRead.state(id));
+    allProposalsCache.push({ id, p, state });
+  }
+  renderFilteredProposals(2, "charterAmendmentsWrap");
+  renderFilteredProposals(1, "slashProposalsWrap");
+}
+
+function renderProposalCard(id, p, state){
+  const total = Number(p.forVotes) + Number(p.againstVotes) + Number(p.abstainVotes);
+  const forPct = total ? Math.round(Number(p.forVotes)/total*100) : 0;
+  const againstPct = total ? Math.round(Number(p.againstVotes)/total*100) : 0;
+  const abstainPct = 100 - forPct - againstPct;
+  const typeLabel = TYPE_LABELS[Number(p.pType)] || "일반 안건";
+  const typePill = TYPE_PILLS[Number(p.pType)] || "pill-neutral";
+  let extraInfo = "";
+  if(Number(p.pType) === 1) extraInfo = `<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;">대상: <span class="mono">${short(p.slashTarget)}</span> · 강등폭: ${p.slashLevels}단계</div>`;
+
+  return `<div class="proposal">
+    <div class="proposal-head">
+      <div><span class="badge-pill ${typePill}">${typeLabel}</span><span class="proposal-id mono"> #${id}</span></div>
+      <span class="badge-pill ${STATE_PILL[state]}">${STATE_NAMES[state]}</span>
+    </div>
+    <div class="proposal-desc">${escapeHtml(p.description)}</div>
+    ${extraInfo}
+    <div class="vote-bar"><div class="for" style="width:${forPct}%"></div><div class="against" style="width:${againstPct}%"></div><div class="abstain" style="width:${abstainPct}%"></div></div>
+    <div class="vote-meta"><span>찬성 ${p.forVotes.toString()}</span><span>반대 ${p.againstVotes.toString()}</span><span>기권 ${p.abstainVotes.toString()}</span><span>필요 정족수 ${p.requiredQuorum.toString()}</span></div>
+    <div class="proposal-actions" id="actions-${id}"></div>
+  </div>`;
+}
+
+async function renderFilteredProposals(pType, wrapId){
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  const filtered = allProposalsCache.filter(x => Number(x.p.pType) === pType).sort((a,b)=>b.id-a.id);
+  if(filtered.length === 0){ wrap.innerHTML = '<div class="empty-state">해당 유형의 제안이 없습니다.</div>'; return; }
+  wrap.innerHTML = filtered.map(x => renderProposalCard(x.id, x.p, x.state)).join("");
+
+  if(signerAddress){
+    for(const x of filtered){
+      const actionsEl = document.getElementById(`actions-${x.id}`);
+      if(!actionsEl) continue;
+      if(x.state === 1){
+        const voted = Number(await govRead.votesCast(x.id, signerAddress));
+        actionsEl.innerHTML = voted === 0
+          ? `<button class="btn small" onclick="vote(${x.id},1)">찬성</button><button class="btn small ghost" onclick="vote(${x.id},2)">반대</button><button class="btn small ghost" onclick="vote(${x.id},3)">기권</button>`
+          : `<span class="badge-pill pill-neutral">이미 투표함</span>`;
+      } else if(x.state === 3){
+        actionsEl.innerHTML = `<button class="btn small seal" onclick="executeProposal(${x.id})">집행하기</button>`;
+      }
+      if(pType === 2 && charterStakeWrite && (x.state === 2 || x.state === 4 || x.state === 5)){
+        actionsEl.innerHTML += ` <button class="btn small ghost" onclick="resolveCharterStake(${x.id})">예치금 정산</button>`;
+      }
+    }
+  }
+}
+
+async function resolveCharterStake(proposalId){
+  try{
+    const tx = await charterStakeWrite.resolve(proposalId);
+    await tx.wait();
+    alert("예치금 정산이 완료되었습니다.");
+    await loadFees();
+  }catch(e){ alert(friendlyError(e)); }
+}
+
+async function loadCharter(){
+  if(!charterRead) return;
+  const [qn, qa, vpn, vpa, founding] = await Promise.all([
+    charterRead.quorumNormal(), charterRead.quorumAmendment(),
+    charterRead.votingPeriodNormal(), charterRead.votingPeriodAmendment(),
+    charterRead.foundingCharterText()
+  ]);
+  document.getElementById("charterQuorumNormal").textContent = qn.toString();
+  document.getElementById("charterQuorumAmend").textContent = qa.toString();
+  document.getElementById("charterPeriodNormal").textContent = fmtDuration(Number(vpn));
+  document.getElementById("charterPeriodAmend").textContent = fmtDuration(Number(vpa));
+
+  const [membership, slashing] = await Promise.all([charterRead.getMembershipCriteria(), charterRead.getSlashingCriteria()]);
+
+  let doc = `<h3>제1장 총칙</h3>`;
+  doc += `<p class="charter-article"><b>제1조(목적)</b> 본 정관은 디지털자산 산업 규제개혁 협의체(이하 "협의체")의 조직과 운영에 관한 사항을 정함을 목적으로 한다.</p>`;
+  doc += `<p class="charter-article"><b>제2조(창립)</b> ${escapeHtml(founding)}</p>`;
+
+  doc += `<h3>제2장 회원의 자격</h3>`;
+  membership.forEach((item, i) => {
+    doc += `<p class="charter-article"><b>제${3+i}조(가입 요건)</b> ${escapeHtml(item)}</p>`;
+  });
+
+  doc += `<h3>제3장 제재</h3>`;
+  const slashBase = 3 + membership.length;
+  slashing.forEach((item, i) => {
+    doc += `<p class="charter-article"><b>제${slashBase+i}조(제재 사유)</b> ${escapeHtml(item)}</p>`;
+  });
+
+  doc += `<h3>제4장 의결 정족수</h3>`;
+  const quorumArt = slashBase + slashing.length;
+  doc += `<p class="charter-article"><b>제${quorumArt}조(일반 의결)</b> 일반 안건 및 슬래싱 제안은 총 투표참여 파워 ${qn.toString()} 이상, 투표기간 ${fmtDuration(Number(vpn))} 이내에 찬성이 반대를 초과하는 경우 가결한다.</p>`;
+  doc += `<p class="charter-article"><b>제${quorumArt+1}조(정관 개정)</b> 정관 개정은 운영위원 이상만 발의할 수 있으며, 총 투표참여 파워 ${qa.toString()} 이상, 투표기간 ${fmtDuration(Number(vpa))} 이내에 찬성이 반대를 초과하는 경우에 한하여 가결한다.</p>`;
+
+  document.getElementById("charterDocWrap").innerHTML = doc;
+
+  const histLen = Number(await charterRead.amendmentHistoryLength());
+  const histWrap = document.getElementById("charterHistory");
+  if(histLen === 0){
+    histWrap.innerHTML = '<div class="empty-state">아직 개정 이력이 없습니다.</div>';
+  } else {
+    let html = '<table class="ledger"><thead><tr><th>항목</th><th>이전 값</th><th>변경 값</th><th>관련 제안</th></tr></thead><tbody>';
+    for(let i = histLen - 1; i >= 0; i--){
+      const h = await charterRead.amendmentHistory(i);
+      html += `<tr><td class="mono">${h.field}</td><td class="mono">${escapeHtml(h.oldValue)}</td><td class="mono">${escapeHtml(h.newValue)}</td><td class="mono">#${h.proposalId.toString()}</td></tr>`;
+    }
+    html += "</tbody></table>";
+    histWrap.innerHTML = html;
+  }
+}
+
+async function loadApplications(){
+  if(!joinRead) return;
+  let count;
+  try { count = Number(await joinRead.applicationCount()); }
+  catch(e){ document.getElementById("applicationsWrap").innerHTML = '<div class="empty-state">JoinRegistry 주소를 읽을 수 없습니다. 주소가 올바른지 확인해주세요.</div>'; return; }
+  const wrap = document.getElementById("applicationsWrap");
+  if(count === 0){ wrap.innerHTML = '<div class="empty-state">아직 신청 내역이 없습니다.</div>'; return; }
+  const adminAddr = await joinRead.admin();
+  const isAdmin = signerAddress && signerAddress.toLowerCase() === adminAddr.toLowerCase();
+
+  let html = '<table class="ledger"><thead><tr><th>#</th><th>신청자</th><th>소속</th><th>사유</th><th>배정 담당자</th><th>상태</th></tr></thead><tbody>';
+  for(let id = count; id >= 1; id--){
+    const a = await joinRead.applications(id);
+    let statusCell = '<span class="badge-pill pill-pending">심사중</span>';
+    if(a.approved) statusCell = '<span class="badge-pill pill-active">승인됨</span>';
+    else if(a.rejected) statusCell = '<span class="badge-pill pill-revoked">반려됨</span>';
+    const assigned = a.assignedReviewer && a.assignedReviewer !== ethers.ZeroAddress;
+    const assignedCell = assigned ? `<span class="mono">${short(a.assignedReviewer)}</span>` : '<span class="badge-pill pill-neutral">배정 대기</span>';
+    const canAct = signerAddress && (isAdmin || (assigned && a.assignedReviewer.toLowerCase() === signerAddress.toLowerCase()));
+    if(canAct && !a.approved && !a.rejected){
+      statusCell += ` <button class="btn small" style="margin-left:6px;" onclick="approveApplication(${id},'${a.applicant}')">승인</button>`;
+    }
+    html += `<tr><td class="mono">${id}</td><td class="mono">${short(a.applicant)}</td><td>${escapeHtml(a.org)}</td><td style="max-width:260px;white-space:pre-wrap;font-size:11px;">${escapeHtml(a.reason)}</td><td>${assignedCell}</td><td>${statusCell}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  wrap.innerHTML = html;
+}
+
+let allPeerReviewCases = {}; // caseId -> case struct 캐시 (모달 재사용용)
+
+async function loadPeerReview(){
+  if(!peerReviewRead) return;
+  const count = Number(await peerReviewRead.caseCount());
+  peerReviewBySourcePost = {};
+  allPeerReviewCases = {};
+  const publishedWrap = document.getElementById("publishedWrap");
+
+  if(count === 0){
+    publishedWrap.innerHTML = '<div class="empty-state">아직 의안상정·발행된 정책제안이 없습니다.</div>';
+    await loadBoard();
+    return;
+  }
+
+  // 1단계: 전체 케이스를 캐시하고, 게시글별 동료검토 상태 매핑을 먼저 구축
+  const publishedIds = [];
+  for(let id = count; id >= 1; id--){
+    const c = await peerReviewRead.cases(id);
+    const status = Number(c.status);
+    allPeerReviewCases[id] = c;
+    if(Number(c.caseType) === 0){
+      peerReviewBySourcePost[Number(c.sourcePostId)] = { caseId: id, status };
+    }
+    if(status === 3 || status === 5){ publishedIds.push(id); } // AGENDA_ADOPTED 또는 PUBLISHED
+  }
+
+  // 2단계: 게시글 목록(제안마당) 렌더링 - 이때 allEndorsements도 채워짐
+  await loadBoard();
+
+  // 3단계: 정책제안 패널(의안상정 + 발행됨) 렌더링 - 원문/찬성의견/동의의견/첨부파일 포함
+  let publishedHtml = "";
+  for(const id of publishedIds){
+    const c = allPeerReviewCases[id];
+    const status = Number(c.status);
+    const typeLabel = CASE_TYPE_NAMES[Number(c.caseType)] || "케이스";
+
+    if(status === 5){
+      const date = new Date(Number(c.publishedAt)*1000).toLocaleDateString('ko-KR');
+      publishedHtml += `<div class="post-card">
+        <span class="cat-pill cat-0">${typeLabel}</span> <span class="badge-pill pill-active">발행됨</span>
+        <div class="post-title">${escapeHtml(c.finalTitle)}</div>
+        <div class="post-meta">발행일 ${date} · 원제안자 <span class="mono">${short(c.claimant)}</span> · 주에디터 <span class="mono">${short(c.chiefEditor)}</span> · 찬성 ${c.approveCount.toString()}표</div>
+        <div class="post-content">${escapeHtml(c.finalSummary)}</div>
+        <div class="post-footer"><a href="${c.finalDocumentURI}" target="_blank" rel="noopener" class="btn small dark">전문 조회/다운로드</a></div>
+      </div>`;
+      continue;
+    }
+
+    // status === 3 (AGENDA_ADOPTED, 아직 에디터 최종 발행 전) — 원문/찬성의견/동의의견/첨부파일 공개
+    let title = c.description, content = "", attachmentURI = "";
+    if(Number(c.caseType) === 0 && boardRead){
+      try{
+        const post = await boardRead.posts(Number(c.sourcePostId));
+        title = post.title; content = post.content; attachmentURI = post.attachmentURI;
+      }catch(e){}
+    }
+    const supportList = allEndorsements.filter(e => e.exists && Number(e.targetType) === 0 && Number(e.targetId) === Number(c.sourcePostId) && e.isSupport);
+    const supportHtml = supportList.length
+      ? supportList.map(e => `<div class="endorsement-item support${e.counted?' counted':''}">
+          <div style="font-size:11px;font-weight:700;color:var(--moss);">👍 찬성 · <span class="mono">${short(e.endorser)}</span></div>
+          <div class="endorsement-reason">${escapeHtml(e.reason)}</div>
+          <div class="endorsement-meta"><span>동의(uphold) ${e.upholdCount.toString()}건${e.counted?' · 검증완료':''}</span></div>
+        </div>`).join("")
+      : '<div class="empty-state">등록된 찬성의견이 없습니다.</div>';
+    const attachmentHtml = attachmentURI ? `<div style="margin:8px 0;"><a href="${attachmentURI}" target="_blank" rel="noopener" class="btn small ghost">📎 첨부파일 보기</a></div>` : "";
+
+    publishedHtml += `<div class="post-card">
+      <span class="cat-pill cat-0">${typeLabel}</span> <span class="badge-pill pill-active">의안상정</span>
+      <div class="post-title">${escapeHtml(title)}</div>
+      <div class="post-meta">원제안자 <span class="mono">${short(c.claimant)}</span> · 주에디터 <span class="mono">${short(c.chiefEditor)}</span> · 찬성 ${c.approveCount.toString()}표</div>
+      <div class="post-content">${escapeHtml(content)}</div>
+      ${attachmentHtml}
+      <h3 style="font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--gold-bright);">찬성의견 및 동의의견</h3>
+      ${supportHtml}
+      <div class="post-footer">에디터 최종 정리본은 발행 완료 시 "전문 조회/다운로드" 링크로 별도 제공됩니다.</div>
+    </div>`;
+  }
+
+  publishedWrap.innerHTML = publishedHtml || '<div class="empty-state">아직 의안상정·발행된 정책제안이 없습니다.</div>';
+}
+
+// ---------------- 동료검토 진행현황 팝업 모달 ----------------
+
+function openModal(html){
+  document.getElementById("genericModalContent").innerHTML = html;
+  document.getElementById("genericModal").classList.add("active");
+}
+function closeModal(){
+  document.getElementById("genericModal").classList.remove("active");
+}
+
+function openPeerReviewModalForPost(postId){
+  const pr = peerReviewBySourcePost[Number(postId)];
+  if(!pr) return;
+  openModal(buildCaseDetailHtml(pr.caseId));
+  fillCaseModalDetails(pr.caseId);
+}
+
+function buildCaseDetailHtml(id){
+  const c = allPeerReviewCases[id];
+  if(!c) return '<div class="empty-state">케이스 정보를 불러올 수 없습니다.</div>';
+  const status = Number(c.status);
+  const typeLabel = CASE_TYPE_NAMES[Number(c.caseType)] || "케이스";
+
+  return `<h2 class="section-title">동료검토 진행 현황 · 케이스 #${id}</h2>
+    <div class="proposal" style="box-shadow:none;">
+      <div class="proposal-head">
+        <div><span class="badge-pill pill-neutral">${typeLabel}</span><span class="proposal-id mono"> #${id}</span></div>
+        <span class="badge-pill ${CASE_STATUS_PILL[status]}">${CASE_STATUS_NAMES[status]}</span>
+      </div>
+      <div class="proposal-desc">${c.description ? escapeHtml(c.description) : '(정책제안 게시글 #'+c.sourcePostId+' 참조)'}</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;">
+        주에디터 <span class="mono">${short(c.chiefEditor)}</span> · 보조에디터 <span class="mono">${short(c.coEditor)}</span> · 찬성 ${c.approveCount.toString()}표
+      </div>
+      <div id="caseReviewersWrap-${id}"><div class="empty-state">불러오는 중…</div></div>
+      <div id="caseActionsWrap-${id}"></div>
+    </div>`;
+}
+
+async function fillCaseModalDetails(id){
+  const c = allPeerReviewCases[id];
+  if(!c) return;
+  const status = Number(c.status);
+  const reviewerCount = Number(await peerReviewRead.reviewersCount(id));
+  const accepted = Number(await peerReviewRead.acceptedReviewerCount(id));
+  const submitted = Number(await peerReviewRead.submittedReviewCount(id));
+  const quorum = Number(await peerReviewRead.reviewerQuorum());
+
+  let reviewerRows = `<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;">리뷰어 수락 ${accepted}/${quorum} · 리뷰 제출 ${submitted}/${quorum}</div>`;
+  let mySlot = null;
+  for(let i=0;i<reviewerCount;i++){
+    const inv = await peerReviewRead.reviewersOf(id, i);
+    reviewerRows += `<div style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">
+      <span class="mono">${short(inv.reviewer)}</span> — ${INVITE_STATUS_NAMES[Number(inv.status)]}${inv.reviewSubmitted ? ` · 리뷰 제출완료 (${inv.approve ? '찬성' : '반대'})` : ''}
+    </div>`;
+    if(signerAddress && inv.reviewer.toLowerCase() === signerAddress.toLowerCase()){
+      mySlot = { index: i, status: Number(inv.status), submitted: inv.reviewSubmitted };
+    }
+  }
+  const rw = document.getElementById(`caseReviewersWrap-${id}`);
+  if(rw) rw.innerHTML = reviewerRows;
+
+  let actionsHtml = "";
+  const isEditor = signerAddress && (c.chiefEditor.toLowerCase() === signerAddress.toLowerCase() || c.coEditor.toLowerCase() === signerAddress.toLowerCase());
+  if(status === 3 && isEditor){
+    actionsHtml = `<div class="reason-form" style="flex-direction:column;">
+      <input id="pubTitle-${id}" placeholder="최종 정책제안서 제목" style="margin-bottom:6px;padding:8px;border:1px solid var(--line-strong);border-radius:3px;background:var(--bg-2);color:var(--ink);">
+      <input id="pubDocUri-${id}" placeholder="전문 링크 (IPFS/문서 URL)" style="margin-bottom:6px;padding:8px;border:1px solid var(--line-strong);border-radius:3px;background:var(--bg-2);color:var(--ink);">
+      <textarea id="pubSummary-${id}" placeholder="요약" style="margin-bottom:6px;"></textarea>
+      <button class="btn small seal" onclick="publishCase(${id})">최종 발행 (투표 불필요)</button>
+    </div>`;
+  } else if(status === 2 && mySlot && mySlot.status === 1 && !mySlot.submitted){
+    actionsHtml = `<div class="reason-form">
+      <textarea id="reviewUri-${id}" placeholder="리뷰 의견 링크 또는 요약을 입력하세요"></textarea>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="btn small" onclick="submitMyReview(${id},${mySlot.index},true)">👍 찬성으로 제출</button>
+        <button class="btn small ghost" onclick="submitMyReview(${id},${mySlot.index},false)">👎 반대로 제출</button>
+      </div>
+    </div>`;
+  }
+  if((status === 3 || status === 4) && boardStakeWrite && Number(c.caseType) === 0){
+    actionsHtml += `<div style="margin-top:10px;"><button class="btn small ghost" onclick="resolveBoardStake(${c.sourcePostId},${id})">예치금 정산</button></div>`;
+  }
+  const aw = document.getElementById(`caseActionsWrap-${id}`);
+  if(aw) aw.innerHTML = actionsHtml;
+}
+
+async function resolveBoardStake(postId, caseId){
+  try{
+    const tx = await boardStakeWrite.resolve(postId, caseId);
+    await tx.wait();
+    alert("예치금 정산이 완료되었습니다.");
+    await loadFees();
+  }catch(e){ alert(friendlyError(e)); }
+}
+
+async function submitMyReview(caseId, inviteIndex, approve){
+  const uri = document.getElementById(`reviewUri-${caseId}`).value.trim();
+  if(!uri){ alert("리뷰 의견 링크 또는 요약을 입력해주세요."); return; }
+  try{
+    const tx = await peerReviewWrite.submitReview(caseId, inviteIndex, uri, approve);
+    await tx.wait();
+    await loadPeerReview();
+  }catch(e){ alert(friendlyError(e)); }
+}
+async function publishCase(caseId){
+  const title = document.getElementById(`pubTitle-${caseId}`).value.trim();
+  const docUri = document.getElementById(`pubDocUri-${caseId}`).value.trim();
+  const summary = document.getElementById(`pubSummary-${caseId}`).value.trim();
+  if(!title || !docUri){ alert("제목과 전문 링크는 필수입니다."); return; }
+  try{
+    const tx = await peerReviewWrite.publishFinalProposal(caseId, title, docUri, summary);
+    await tx.wait();
+    await loadPeerReview();
+  }catch(e){ alert(friendlyError(e)); }
+}
+
+// ---------------- 회비·행사 (RDAO) ----------------
+
+function fmtRdao(raw){
+  try{ return Number(ethers.formatUnits(raw, rdaoDecimals)).toLocaleString(); }
+  catch(e){ return "0"; }
+}
+function toRdaoUnits(n){ return ethers.parseUnits(String(n), rdaoDecimals); }
+
+async function loadFees(){
+  if(!feeVaultRead) return;
+
+  // RDAO 잔액
+  if(rdaoRead && signerAddress){
+    try{
+      rdaoDecimals = Number(await rdaoRead.decimals());
+      const bal = await rdaoRead.balanceOf(signerAddress);
+      document.getElementById("myRdaoBalance").textContent = fmtRdao(bal);
+    }catch(e){ document.getElementById("myRdaoBalance").textContent = "—"; }
+  } else {
+    document.getElementById("myRdaoBalance").textContent = signerAddress ? "—" : "지갑 연결 필요";
+  }
+
+  // 연회비 상태
+  const annualFee = await feeVaultRead.annualFeeAmount();
+  document.getElementById("annualFeeDisplay").textContent = fmtRdao(annualFee);
+  if(signerAddress){
+    const current = await feeVaultRead.isFeeCurrent(signerAddress);
+    document.getElementById("myFeeStatus").textContent = current ? "납부완료" : "미납";
+  } else {
+    document.getElementById("myFeeStatus").textContent = "지갑 연결 필요";
+  }
+
+  // 행사 목록
+  const count = Number(await feeVaultRead.eventCount());
+  const wrap = document.getElementById("eventsWrap");
+  if(count === 0){
+    wrap.innerHTML = '<div class="empty-state">등록된 행사가 없습니다.</div>';
+  } else {
+    let html = '<table class="ledger"><thead><tr><th>#</th><th>행사명</th><th>참가비</th><th>상태</th><th>결제</th></tr></thead><tbody>';
+    for(let id = count; id >= 1; id--){
+      const e = await feeVaultRead.events(id);
+      const paid = signerAddress ? await feeVaultRead.eventPaid(id, signerAddress) : false;
+      const statusPill = !e.active ? '<span class="badge-pill pill-neutral">마감</span>'
+        : paid ? '<span class="badge-pill pill-active">결제완료</span>'
+        : '<span class="badge-pill pill-pending">모집중</span>';
+      const payBtn = (e.active && !paid) ? `<button class="btn small seal" onclick="payEventFee(${id})">참가비 결제</button>` : '—';
+      html += `<tr><td class="mono">${id}</td><td>${escapeHtml(e.name)}</td><td>${fmtRdao(e.feeAmount)} RDAO</td><td>${statusPill}</td><td>${payBtn}</td></tr>`;
+    }
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+  }
+
+  // 관리자 전용 행사 등록 폼 노출 여부
+  const adminAddr = await feeVaultRead.admin();
+  const isAdmin = signerAddress && signerAddress.toLowerCase() === adminAddr.toLowerCase();
+  document.getElementById("adminEventCreateWrap").style.display = isAdmin ? "block" : "none";
+}
+
+/** RDAO 지출이 필요한 작업 전, 필요한 만큼 allowance가 있는지 확인하고 부족하면 승인 트랜잭션을 먼저 보낸다. */
+async function ensureRdaoAllowance(spender, amount){
+  const current = await rdaoRead.allowance(signerAddress, spender);
+  if(current < amount){
+    const tx = await rdaoWrite.approve(spender, amount);
+    await tx.wait();
+  }
+}
+
+document.getElementById("payFeeBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("feeStatusMsg");
+  if(!signerAddress){ msg.textContent = "먼저 지갑을 연결해주세요."; msg.className="status-msg err"; return; }
+  if(!rdaoWrite || !feeVaultWrite){ msg.textContent = "RDAOToken / MembershipFeeVault 주소가 설정되어 있지 않습니다."; msg.className="status-msg err"; return; }
+  try{
+    msg.textContent = "승인(approve) 확인 중…"; msg.className="status-msg";
+    const cfg = loadCfg();
+    const fee = await feeVaultRead.annualFeeAmount();
+    await ensureRdaoAllowance(cfg.feeVault, fee);
+    msg.textContent = "연회비 납부 중…";
+    const tx = await feeVaultWrite.payAnnualFee();
+    await tx.wait();
+    msg.textContent = "연회비 납부가 완료되었습니다."; msg.className = "status-msg ok";
+    await loadFees();
+  }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
+});
+
+async function payEventFee(eventId){
+  if(!signerAddress){ alert("먼저 지갑을 연결해주세요."); return; }
+  try{
+    const cfg = loadCfg();
+    const e = await feeVaultRead.events(eventId);
+    await ensureRdaoAllowance(cfg.feeVault, e.feeAmount);
+    const tx = await feeVaultWrite.payEventFee(eventId);
+    await tx.wait();
+    await loadFees();
+  }catch(err){ alert(friendlyError(err)); }
+}
+
+document.getElementById("createEventBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("eventCreateStatusMsg");
+  const name = document.getElementById("newEventName").value.trim();
+  const feeStr = document.getElementById("newEventFee").value.trim();
+  if(!name || !feeStr){ msg.textContent = "행사명과 참가비를 모두 입력해주세요."; msg.className="status-msg err"; return; }
+  try{
+    msg.textContent = "등록 중…"; msg.className="status-msg";
+    const tx = await feeVaultWrite.createEvent(name, toRdaoUnits(feeStr));
+    await tx.wait();
+    msg.textContent = "행사가 등록되었습니다."; msg.className = "status-msg ok";
+    document.getElementById("newEventName").value = "";
+    document.getElementById("newEventFee").value = "";
+    await loadFees();
+  }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
+});
+
+async function loadMyProfile(){
+  const needsWallet = document.getElementById("profileNeedsWallet");
+  const formWrap = document.getElementById("profileFormWrap");
+  if(!signerAddress){
+    needsWallet.style.display = "block";
+    formWrap.style.display = "none";
+    return;
+  }
+  needsWallet.style.display = "none";
+  formWrap.style.display = "block";
+
+  if(!profileRead) return;
+  try{
+    const p = await profileRead.getProfile(signerAddress);
+    if(p.exists){
+      document.getElementById("profileBio").value = p.bio;
+      document.getElementById("profileInterests").value = (p.interests||[]).join(", ");
+      document.getElementById("profileEmail").value = p.email;
+      document.getElementById("profilePhone").value = p.phone;
+    }
+  }catch(e){}
+}
+
+document.getElementById("submitProfileBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("profileStatusMsg");
+  if(!signerAddress){ msg.textContent = "먼저 지갑을 연결해주세요."; msg.className="status-msg err"; return; }
+  if(!profileWrite){ msg.textContent = "MemberProfile 주소가 설정되어 있지 않습니다."; msg.className="status-msg err"; return; }
+  const bio = document.getElementById("profileBio").value.trim();
+  const interests = document.getElementById("profileInterests").value.split(",").map(s=>s.trim()).filter(Boolean);
+  const email = document.getElementById("profileEmail").value.trim();
+  const phone = document.getElementById("profilePhone").value.trim();
+  if(!email || !phone){ msg.textContent = "이메일과 휴대폰 번호는 필수 입력 항목입니다."; msg.className="status-msg err"; return; }
+  try{
+    msg.textContent = "저장 중…"; msg.className = "status-msg";
+    const tx = await profileWrite.setProfile(bio, interests, email, phone);
+    await tx.wait();
+    msg.textContent = "프로필이 저장되었습니다."; msg.className = "status-msg ok";
+  }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
+});
+
+let cachedPosts = [];
+
+async function loadBoard(){
+  if(!boardRead) return;
+  const postCount = Number(await boardRead.postCount());
+  const endCount = Number(await boardRead.endorsementCount());
+  allEndorsements = [];
+  for(let i=1;i<=endCount;i++){ try { allEndorsements.push(await boardRead.endorsements(i)); } catch(e){} }
+
+  const wrap = document.getElementById("postsWrap");
+  if(postCount === 0){ wrap.innerHTML = '<div class="empty-state">아직 게시글이 없습니다. 첫 제안을 올려보세요.</div>'; return; }
+
+  cachedPosts = [];
+  for(let id = postCount; id >= 1; id--){
+    const p = await boardRead.posts(id);
+    if(!p.exists) continue;
+    cachedPosts.push(p);
+  }
+
+  let html = '<table class="ledger"><thead><tr><th>#</th><th>카테고리</th><th>제목</th><th>작성자</th><th>찬성</th><th>반대</th><th>동료검토</th></tr></thead><tbody>';
+  cachedPosts.forEach(p => {
+    const cat = Number(p.category);
+    const counts = rawCounts(0, p.id);
+    const pr = peerReviewBySourcePost[Number(p.id)];
+    const prCell = pr
+      ? `<span class="badge-pill ${CASE_STATUS_PILL[pr.status]} clickable-cell" onclick="event.stopPropagation();openPeerReviewModalForPost(${p.id})">${CASE_STATUS_NAMES[pr.status]}</span>`
+      : '<span class="badge-pill pill-neutral">미상정</span>';
+    html += `<tr class="post-row" onclick="togglePostDetail(${p.id})" style="cursor:pointer;">
+      <td class="mono">${p.id}</td>
+      <td><span class="cat-pill cat-${cat}">${CATEGORY_LABELS[cat]||'기타'}</span></td>
+      <td>${escapeHtml(p.title)}</td>
+      <td class="mono">${short(p.author)}</td>
+      <td style="color:var(--moss);font-weight:700;">${counts.support}</td>
+      <td style="color:var(--seal);font-weight:700;">${counts.oppose}</td>
+      <td>${prCell}</td>
+    </tr>
+    <tr id="postDetailRow-${p.id}" style="display:none;"><td colspan="7" style="padding:0;border-bottom:none;"><div id="postDetail-${p.id}" style="padding:16px 20px;background:var(--bg-2);"></div></td></tr>`;
+  });
+  html += "</tbody></table>";
+  wrap.innerHTML = html;
+}
+
+function togglePostDetail(postId){
+  const row = document.getElementById(`postDetailRow-${postId}`);
+  const showing = row.style.display === "table-row";
+  document.querySelectorAll('[id^="postDetailRow-"]').forEach(r => r.style.display = "none");
+  if(showing) return;
+  row.style.display = "table-row";
+  const p = cachedPosts.find(x => Number(x.id) === postId);
+  document.getElementById(`postDetail-${postId}`).innerHTML = renderPostDetail(p);
+}
+
+function rawCounts(targetType, targetId){
+  const list = allEndorsements.filter(e => e.exists && Number(e.targetType) === targetType && Number(e.targetId) === Number(targetId));
+  return { support: list.filter(e=>e.isSupport).length, oppose: list.filter(e=>!e.isSupport).length, list };
+}
+
+function renderPostDetail(p){
+  const date = new Date(Number(p.createdAt)*1000).toLocaleDateString('ko-KR');
+  const counts = rawCounts(0, p.id);
+  const myEndorsement = signerAddress ? counts.list.find(e => e.endorser.toLowerCase() === signerAddress.toLowerCase()) : null;
+  const attachmentHtml = p.attachmentURI ? `<div style="margin-bottom:10px;"><a href="${p.attachmentURI}" target="_blank" rel="noopener" class="btn small ghost">📎 첨부파일 보기</a></div>` : "";
+
+  return `
+    <div class="post-meta">작성자 <span class="mono">${short(p.author)}</span> · ${date}</div>
+    <div class="post-content">${escapeHtml(p.content)}</div>
+    ${attachmentHtml}
+    <div class="like-row">
+      <button class="like-btn ${myEndorsement && myEndorsement.isSupport ? 'active-support' : ''}" ${myEndorsement ? 'disabled' : ''} onclick="event.stopPropagation();openEndorseBox(${p.id}, true)">👍 찬성 <span class="like-count">${counts.support}</span></button>
+      <button class="like-btn ${myEndorsement && !myEndorsement.isSupport ? 'active-oppose' : ''}" ${myEndorsement ? 'disabled' : ''} onclick="event.stopPropagation();openEndorseBox(${p.id}, false)">👎 반대 <span class="like-count">${counts.oppose}</span></button>
+      ${counts.list.length > 0 ? `<button class="btn small ghost" onclick="event.stopPropagation();toggleReasons(${p.id})">근거 ${counts.list.length}개 보기</button>` : ''}
+    </div>
+    <div class="endorse-box" id="endorseBox-${p.id}" style="display:none;"></div>
+    <div class="reasons-block" id="reasons-${p.id}" style="display:none;"></div>`;
+}
+
+function openEndorseBox(postId, isSupport){
+  if(!signerAddress){ alert("지지/반대하려면 먼저 지갑을 연결해주세요."); return; }
+  const box = document.getElementById(`endorseBox-${postId}`);
+  box.style.display = "block";
+  box.innerHTML = `<div class="reason-form">
+    <textarea id="reason-${postId}" placeholder="${isSupport ? '찬성' : '반대'}하는 근거를 최소 10자 이상 작성해주세요"></textarea>
+    <button class="btn small ${isSupport ? '' : 'ghost'}" onclick="submitPostEndorse(${postId}, ${isSupport})">${isSupport ? '👍 찬성 제출' : '👎 반대 제출'}</button>
+  </div>`;
+}
+async function submitPostEndorse(postId, isSupport){
+  const reason = document.getElementById(`reason-${postId}`).value.trim();
+  if(reason.length < 10){ alert("근거는 최소 10자 이상 작성해주세요."); return; }
+  try{
+    const tx = await boardWrite.endorsePost(postId, isSupport, reason);
+    await tx.wait();
+    await loadBoard();
+  }catch(e){ alert(friendlyError(e)); }
+}
+function toggleReasons(postId){
+  const el = document.getElementById(`reasons-${postId}`);
+  if(el.style.display === "block"){ el.style.display = "none"; return; }
+  const counts = rawCounts(0, postId);
+  el.style.display = "block";
+  el.innerHTML = renderEndorsementList(counts.list);
+}
+function renderEndorsementList(list){
+  if(list.length === 0) return '<div style="font-size:12.5px;color:var(--ink-soft);">아직 근거가 없습니다.</div>';
+  return list.map(e => {
+    const cls = e.isSupport ? 'support' : 'oppose';
+    const countedCls = e.counted ? ' counted' : '';
+    const canUphold = signerAddress && !e.counted && e.endorser.toLowerCase() !== signerAddress.toLowerCase();
+    return `<div class="endorsement-item ${cls}${countedCls}">
+      <div style="font-size:11px;font-weight:700;color:${e.isSupport?'var(--moss)':'var(--seal)'};">${e.isSupport?'👍 찬성':'👎 반대'} · <span class="mono">${short(e.endorser)}</span></div>
+      <div class="endorsement-reason">${escapeHtml(e.reason)}</div>
+      <div class="endorsement-meta">
+        <span>동의 ${e.upholdCount.toString()}명${e.counted ? ' · 포인트 반영 완료' : ' (등급 반영엔 동료 검증 필요)'}</span>
+        ${canUphold ? `<button class="btn small ghost" onclick="upholdEndorsement(${e.id})">이 근거에 동의</button>` : ''}
+      </div>
+    </div>`;
+  }).join("");
+}
+async function upholdEndorsement(endorsementId){
+  try{ const tx = await boardWrite.uphold(endorsementId); await tx.wait(); await loadBoard(); }
+  catch(e){ alert(friendlyError(e)); }
+}
+
+let pendingAttachmentUrl = "";
+
+async function uploadToIPFS(file){
+  const cfg = loadCfg();
+  if(!cfg.pinataJwt){
+    throw new Error("Pinata JWT가 설정되어 있지 않습니다. 관리자 설정에서 Pinata JWT를 입력해주세요. (pinata.cloud 무료 가입 후 API Keys 메뉴에서 JWT 발급)");
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${cfg.pinataJwt}` },
+    body: formData
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error?.details || data.error || "IPFS 업로드 실패");
+  return `https://ipfs.io/ipfs/${data.IpfsHash}`;
+}
+
+document.getElementById("newPostFile").addEventListener("change", async (ev)=>{
+  const file = ev.target.files[0];
+  const info = document.getElementById("newPostFileInfo");
+  pendingAttachmentUrl = "";
+  if(!file){ info.textContent = ""; return; }
+
+  info.textContent = `${file.name} (${Math.round(file.size/1024)}KB) IPFS 업로드 중…`;
+  info.style.color = "var(--ink-soft)";
+  try{
+    const url = await uploadToIPFS(file);
+    pendingAttachmentUrl = url;
+    document.getElementById("newPostAttachmentUrl").value = url;
+    info.textContent = `업로드 완료: ${url}`;
+    info.style.color = "var(--moss)";
+  }catch(e){
+    info.textContent = "⚠️ " + e.message;
+    info.style.color = "var(--seal)";
+  }
+});
+
+document.getElementById("newPostAttachmentUrl").addEventListener("input", (ev)=>{
+  pendingAttachmentUrl = ev.target.value.trim();
+});
+
+function openNewPostModal(){
+  if(!signerAddress){ alert("먼저 지갑을 연결해주세요."); return; }
+  document.getElementById("postStatusMsg").textContent = "";
+  document.getElementById("newPostModal").classList.add("active");
+}
+function closeNewPostModal(){
+  document.getElementById("newPostModal").classList.remove("active");
+}
+
+document.getElementById("submitPostBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("postStatusMsg");
+  if(!signerAddress){ msg.textContent = "먼저 지갑을 연결해주세요."; msg.className="status-msg err"; return; }
+  const category = document.getElementById("newPostCategory").value;
+  const title = document.getElementById("newPostTitle").value.trim();
+  const content = document.getElementById("newPostContent").value.trim();
+  const attachmentUrl = document.getElementById("newPostAttachmentUrl").value.trim() || pendingAttachmentUrl;
+  if(!title || !content){ msg.textContent = "제목과 내용을 모두 입력해주세요."; msg.className="status-msg err"; return; }
+  try{
+    msg.textContent = "게시 중…"; msg.className="status-msg";
+    const tx = await boardWrite.createPost(category, title, content, attachmentUrl || "");
+    await tx.wait();
+    const newPostId = Number(await boardRead.postCount());
+    msg.textContent = "게시글이 등록되었습니다."; msg.className = "status-msg ok";
+    document.getElementById("newPostTitle").value = "";
+    document.getElementById("newPostContent").value = "";
+    document.getElementById("newPostFile").value = "";
+    document.getElementById("newPostFileInfo").textContent = "";
+    document.getElementById("newPostAttachmentUrl").value = "";
+    pendingAttachmentUrl = "";
+    await loadBoard();
+
+    if(boardStakeWrite && boardStakeRead){
+      const amt = await boardStakeRead.stakeAmount();
+      const wantStake = confirm(`RDAO ${fmtRdao(amt)}개를 예치하시겠습니까?\n의안상정되면 예치금 전액 + 보너스를 돌려받고, 부결되어도 소각 없이 전액 반환됩니다(완화형).`);
+      if(wantStake){
+        msg.textContent = "예치 승인(approve) 확인 중…"; msg.className="status-msg";
+        const cfg = loadCfg();
+        await ensureRdaoAllowance(cfg.boardStake, amt);
+        msg.textContent = "예치 중…";
+        const stakeTx = await boardStakeWrite.stake(newPostId);
+        await stakeTx.wait();
+        msg.textContent = "게시글 등록 및 예치가 모두 완료되었습니다."; msg.className = "status-msg ok";
+      }
+    }
+    setTimeout(closeNewPostModal, 1200);
+  }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
+});
+
+function listToHtml(items){
+  if(!items || items.length === 0) return '<div class="empty-state">등록된 조항이 없습니다.</div>';
+  return '<table class="ledger"><tbody>' + items.map(t => `<tr><td>${escapeHtml(t)}</td></tr>`).join("") + '</tbody></table>';
+}
+function fmtDuration(sec){
+  if(sec >= 86400) return Math.round(sec/86400) + "일";
+  if(sec >= 3600) return Math.round(sec/3600) + "시간";
+  if(sec >= 60) return Math.round(sec/60) + "분";
+  return sec + "초";
+}
+function escapeHtml(s){ const d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+
+async function connectWallet(){
+  if(!window.ethereum){ alert("메타마스크가 설치되어 있지 않습니다."); return; }
+  browserProvider = new ethers.BrowserProvider(window.ethereum);
+  await browserProvider.send("eth_requestAccounts", []);
+  signer = await browserProvider.getSigner();
+  signerAddress = await signer.getAddress();
+
+  document.getElementById("walletChip").style.display = "inline-block";
+  document.getElementById("walletChip").textContent = short(signerAddress);
+  document.getElementById("connectBtn").style.display = "none";
+  document.getElementById("disconnectBtn").style.display = "inline-block";
+
+  const cfg = loadCfg();
+  if(cfg.badge) badgeWrite = new ethers.Contract(cfg.badge, BADGE_ABI, signer);
+  if(cfg.gov) govWrite = new ethers.Contract(cfg.gov, GOV_ABI, signer);
+  if(cfg.join) joinWrite = new ethers.Contract(cfg.join, JOIN_ABI, signer);
+  if(cfg.charter) charterWrite = new ethers.Contract(cfg.charter, CHARTER_ABI, signer);
+  if(cfg.board) boardWrite = new ethers.Contract(cfg.board, BOARD_ABI, signer);
+  if(cfg.profile) profileWrite = new ethers.Contract(cfg.profile, PROFILE_ABI, signer);
+  if(cfg.peerReview) peerReviewWrite = new ethers.Contract(cfg.peerReview, PEER_REVIEW_ABI, signer);
+  if(cfg.rdao) rdaoWrite = new ethers.Contract(cfg.rdao, RDAO_ABI, signer);
+  if(cfg.feeVault) feeVaultWrite = new ethers.Contract(cfg.feeVault, FEE_VAULT_ABI, signer);
+  if(cfg.boardStake) boardStakeWrite = new ethers.Contract(cfg.boardStake, BOARD_STAKE_ABI, signer);
+  if(cfg.charterStake) charterStakeWrite = new ethers.Contract(cfg.charterStake, CHARTER_STAKE_ABI, signer);
+
+  await loadProposalsCache();
+  if(cfg.join) await loadApplications();
+  if(cfg.board) await loadBoard();
+  if(cfg.peerReview) await loadPeerReview();
+  await loadMyProfile();
+  if(cfg.feeVault) await loadFees();
+}
+
+function disconnectWallet(){
+  signer = null; signerAddress = null;
+  badgeWrite = govWrite = joinWrite = charterWrite = boardWrite = profileWrite = peerReviewWrite = null;
+  rdaoWrite = feeVaultWrite = boardStakeWrite = charterStakeWrite = null;
+  document.getElementById("walletChip").style.display = "none";
+  document.getElementById("connectBtn").style.display = "inline-block";
+  document.getElementById("connectBtn").textContent = "지갑 연결";
+  document.getElementById("disconnectBtn").style.display = "none";
+  loadProposalsCache();
+  loadMyProfile();
+}
+
+async function vote(id, choice){
+  try{ const tx = await govWrite.castVote(id, choice); await tx.wait(); await loadProposalsCache(); }
+  catch(e){ alert(friendlyError(e)); }
+}
+async function executeProposal(id){
+  try{ const tx = await govWrite.execute(id); await tx.wait(); await Promise.all([loadProposalsCache(), loadMembers()]); }
+  catch(e){ alert(friendlyError(e)); }
+}
+async function approveApplication(id, applicant){
+  const msg = document.getElementById("joinStatusMsg");
+  try{
+    msg.textContent = "배지 발급 트랜잭션 전송 중…"; msg.className = "status-msg";
+    const mintTx = await badgeWrite.mint(applicant); await mintTx.wait();
+    const approveTx = await joinWrite.markApproved(id); await approveTx.wait();
+    msg.textContent = "승인 및 Observer 배지 발급 완료."; msg.className = "status-msg ok";
+    await Promise.all([loadApplications(), loadMembers()]);
+  }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
+}
+
+document.getElementById("submitJoinBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("joinStatusMsg");
+  if(!signerAddress){ msg.textContent = "먼저 지갑을 연결해주세요."; msg.className="status-msg err"; return; }
+  const name = document.getElementById("joinName").value.trim();
+  const nameConfirm = document.getElementById("joinNameConfirm").value.trim();
+  const contact = document.getElementById("joinContact").value.trim();
+  const org = document.getElementById("joinOrg").value.trim();
+  const expertise = document.getElementById("joinExpertise").value.trim();
+  const years = document.getElementById("joinYears").value.trim();
+  const credentials = document.getElementById("joinCredentials").value.trim();
+  const reasonText = document.getElementById("joinReason").value.trim();
+  const attested = document.getElementById("joinAttest").checked;
+  if(!name || !contact || !org || !expertise || !years || !reasonText){ msg.textContent = "성명·연락처·소속·전문분야·경력·가입 사유를 모두 입력해주세요."; msg.className="status-msg err"; return; }
+  if(name !== nameConfirm){ msg.textContent = "성명 재입력이 최초 입력과 일치하지 않습니다."; msg.className="status-msg err"; return; }
+  if(!attested){ msg.textContent = "실명 확인 체크박스에 동의해주세요."; msg.className="status-msg err"; return; }
+  const reason = `성명: ${name}\n연락처: ${contact}\n전문분야: ${expertise} (경력 ${years}년)\n실적/자격증: ${credentials || '(미기재)'}\n[간이 실명확인 완료]\n\n${reasonText}`;
+  try{
+    msg.textContent = "신청 제출 중…"; msg.className="status-msg";
+    const tx = await joinWrite.submitApplication(org, reason);
+    await tx.wait();
+    msg.textContent = "신청이 접수되었습니다. 운영기관 심사를 기다려주세요.";
+    msg.className = "status-msg ok";
+    await loadApplications();
+  }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
+});
+
+document.getElementById("submitAmendBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("amendStatusMsg");
+  if(!signerAddress){ msg.textContent = "먼저 지갑을 연결해주세요."; msg.className="status-msg err"; return; }
+  const field = document.getElementById("amendField").value;
+  const valueStr = document.getElementById("amendValue").value.trim();
+  const desc = document.getElementById("amendDesc").value.trim();
+  if(!valueStr || !desc){ msg.textContent = "새 값과 설명을 모두 입력해주세요."; msg.className="status-msg err"; return; }
+  try{
+    msg.textContent = "제안 제출 중…"; msg.className="status-msg";
+    const value = BigInt(valueStr);
+    const charterIface = new ethers.Interface(CHARTER_ABI);
+    const setterMap = { quorumNormal:"setQuorumNormal", quorumAmendment:"setQuorumAmendment", votingPeriodNormal:"setVotingPeriodNormal", votingPeriodAmendment:"setVotingPeriodAmendment" };
+    const data = charterIface.encodeFunctionData(setterMap[field], [value, 0]);
+    const tx = await govWrite.proposeCharterAmendment(desc, data);
+    await tx.wait();
+    const newProposalId = Number(await govRead.proposalCount());
+    msg.textContent = "정관 개정 제안이 제출되었습니다.";
+    msg.className = "status-msg ok";
+    await loadProposalsCache();
+
+    if(charterStakeWrite && charterStakeRead){
+      const amt = await charterStakeRead.stakeAmount();
+      const wantStake = confirm(`RDAO ${fmtRdao(amt)}개를 예치하시겠습니까?\n가결·집행되면 예치금 전액 + 보너스를 돌려받고, 부결되어도 소각 없이 전액 반환됩니다(완화형).`);
+      if(wantStake){
+        msg.textContent = "예치 승인(approve) 확인 중…"; msg.className="status-msg";
+        const cfg = loadCfg();
+        await ensureRdaoAllowance(cfg.charterStake, amt);
+        msg.textContent = "예치 중…";
+        const stakeTx = await charterStakeWrite.stake(newProposalId);
+        await stakeTx.wait();
+        msg.textContent = "정관 개정 제안 제출 및 예치가 모두 완료되었습니다."; msg.className = "status-msg ok";
+      }
+    }
+  }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
+});
+
+document.getElementById("connectBtn").addEventListener("click", connectWallet);
+document.getElementById("disconnectBtn").addEventListener("click", disconnectWallet);
+document.getElementById("saveCfgBtn").addEventListener("click", saveCfg);
+
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+  });
+});
+document.querySelectorAll(".sub-tab").forEach(st=>{
+  st.addEventListener("click", ()=>{
+    const parent = st.closest(".panel");
+    parent.querySelectorAll(".sub-tab").forEach(t=>t.classList.remove("active"));
+    parent.querySelectorAll(".sub-panel").forEach(p=>p.classList.remove("active"));
+    st.classList.add("active");
+    document.getElementById("subpanel-" + st.dataset.subtab).classList.add("active");
+  });
+});
+
+const BADGE_ABI = [
+  "function isMember(address) view returns (bool)",
+  "function ownerOfBadge(uint256) view returns (address)",
+  "function tokenIdOf(address) view returns (uint256)",
+  "function hasRole(bytes32,address) view returns (bool)",
+  "function REGISTRAR_ROLE() view returns (bytes32)",
+  "function mint(address)",
+  "function mintAt(address,uint8)",
+  "function tierOf(address) view returns (uint8)",
+  "function pointsOf(address) view returns (uint256)",
+  "function pointsToNextTier(address) view returns (uint256)",
+  "function tierThresholds(uint256) view returns (uint256)",
+  "function endorse(address)"
+];
+const GOV_ABI = [
+  "function proposalCount() view returns (uint256)",
+  "function proposals(uint256) view returns (uint256 id, address proposer, uint8 pType, string description, address target, uint256 value, bytes data, address slashTarget, uint8 slashLevels, address achievementTarget, uint8 achievementLevel, uint256 startTime, uint256 endTime, uint256 requiredQuorum, uint256 forVotes, uint256 againstVotes, uint256 abstainVotes, bool executed, bool canceled)",
+  "function state(uint256) view returns (uint8)",
+  "function castVote(uint256,uint8)",
+  "function execute(uint256)",
+  "function votesCast(uint256,address) view returns (uint8)",
+  "function proposeCharterAmendment(string,bytes) returns (uint256)"
+];
+const CHARTER_ABI = [
+  "function quorumNormal() view returns (uint256)",
+  "function quorumAmendment() view returns (uint256)",
+  "function votingPeriodNormal() view returns (uint256)",
+  "function votingPeriodAmendment() view returns (uint256)",
+  "function foundingCharterText() view returns (string)",
+  "function getMembershipCriteria() view returns (string[])",
+  "function getSlashingCriteria() view returns (string[])",
+  "function amendmentHistoryLength() view returns (uint256)",
+  "function amendmentHistory(uint256) view returns (uint256 proposalId, string field, string oldValue, string newValue, uint64 timestamp)",
+  "function setQuorumNormal(uint256,uint256)",
+  "function setQuorumAmendment(uint256,uint256)",
+  "function setVotingPeriodNormal(uint256,uint256)",
+  "function setVotingPeriodAmendment(uint256,uint256)"
+];
+const JOIN_ABI = [
+  "function admin() view returns (address)",
+  "function applicationCount() view returns (uint256)",
+  "function applications(uint256) view returns (address applicant, string reason, string org, uint64 submittedAt, address assignedReviewer, uint64 assignedAt, bool approved, bool rejected)",
+  "function hasPendingApplication(address) view returns (bool)",
+  "function hasEverBeenApproved(address) view returns (bool)",
+  "function minApproverTier() view returns (uint8)",
+  "function submitApplication(string,string) returns (uint256)",
+  "function markApproved(uint256)",
+  "function reject(uint256,string)"
+];
+const BOARD_ABI = [
+  "function postCount() view returns (uint256)",
+  "function posts(uint256) view returns (uint256 id, address author, uint8 category, string title, string content, string attachmentURI, uint64 createdAt, uint256 supportCount, uint256 opposeCount, bool exists)",
+  "function endorsements(uint256) view returns (uint256 id, uint8 targetType, uint256 targetId, address endorser, bool isSupport, string reason, uint256 upholdCount, bool counted, uint64 createdAt, bool exists)",
+  "function endorsementCount() view returns (uint256)",
+  "function hasEndorsedTarget(uint8,uint256,address) view returns (bool)",
+  "function hasUpheld(uint256,address) view returns (bool)",
+  "function upholdThreshold() view returns (uint256)",
+  "function createPost(uint8,string,string,string) returns (uint256)",
+  "function endorsePost(uint256,bool,string) returns (uint256)",
+  "function uphold(uint256)"
+];
+const PROFILE_ABI = [
+  "function setProfile(string,string[],string,string)",
+  "function getProfile(address) view returns (string bio, string[] interests, string email, string phone, bool exists)",
+  "function profiledMemberCount() view returns (uint256)",
+  "function profiledMembers(uint256) view returns (address)"
+];
+const PEER_REVIEW_ABI = [
+  "function caseCount() view returns (uint256)",
+  "function cases(uint256) view returns (uint256 id, uint8 caseType, uint256 sourcePostId, address claimant, string description, address chiefEditor, address coEditor, uint8 status, uint64 createdAt, uint64 publishedAt, uint256 approveCount, bool adopted, string finalTitle, string finalDocumentURI, string finalSummary)",
+  "function reviewersOf(uint256,uint256) view returns (address reviewer, uint8 status, uint64 invitedAt, uint64 respondedAt, bool reviewSubmitted, bool approve, string reviewURI)",
+  "function reviewersCount(uint256) view returns (uint256)",
+  "function acceptedReviewerCount(uint256) view returns (uint256)",
+  "function submittedReviewCount(uint256) view returns (uint256)",
+  "function reviewerQuorum() view returns (uint256)",
+  "function submitReview(uint256,uint256,string,bool)",
+  "function publishFinalProposal(uint256,string,string,string)"
+];
+
+const RDAO_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address,address) view returns (uint256)",
+  "function approve(address,uint256) returns (bool)",
+  "function decimals() view returns (uint8)"
+];
+const FEE_VAULT_ABI = [
+  "function admin() view returns (address)",
+  "function annualFeeAmount() view returns (uint256)",
+  "function feePaidUntil(address) view returns (uint256)",
+  "function isFeeCurrent(address) view returns (bool)",
+  "function payAnnualFee()",
+  "function eventCount() view returns (uint256)",
+  "function events(uint256) view returns (string name, uint256 feeAmount, bool active)",
+  "function eventPaid(uint256,address) view returns (bool)",
+  "function createEvent(string,uint256) returns (uint256)",
+  "function payEventFee(uint256)",
+  "function setEventActive(uint256,bool)"
+];
+const BOARD_STAKE_ABI = [
+  "function stakeAmount() view returns (uint256)",
+  "function bonusBps() view returns (uint256)",
+  "function burnBps() view returns (uint256)",
+  "function stakes(uint256) view returns (address staker, uint256 amount, uint8 status)",
+  "function stake(uint256)",
+  "function resolve(uint256,uint256)"
+];
+const CHARTER_STAKE_ABI = [
+  "function stakeAmount() view returns (uint256)",
+  "function bonusBps() view returns (uint256)",
+  "function burnBps() view returns (uint256)",
+  "function stakes(uint256) view returns (address staker, uint256 amount, uint8 status)",
+  "function stake(uint256)",
+  "function resolve(uint256)"
+];
+
+init();
+</script>
+</body>
+</html>

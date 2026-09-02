@@ -1,0 +1,22 @@
+{
+  "name": "regdao-peer-review-agent",
+  "version": "1.0.0",
+  "description": "RegDAO 정책제안 피어리뷰를 위한 AI 에이전트 서비스 (Claude API 기반 에디터/리뷰어 매칭, 이메일 초대/응답 처리)",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "scan": "node src/scanNewCases.js",
+    "escalate": "node src/scheduler.js",
+    "assign-join": "node src/assignJoinReviewers.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "express": "^4.21.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16",
+    "twilio": "^5.3.5"
+  }
+}
