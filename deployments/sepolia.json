@@ -1,0 +1,18 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployedAt": "2026-10-31",
+  "contracts": {
+    "Charter": "0x18091E72c3db7d3b3Bb5c0E2bef975D9c955061a",
+    "BadgeSBT": "0x549CF996d86ca478AA09BCF30Be5155a149e38bf",
+    "DAOGovernance": "0x39F95eb6408989E05D190118c6afC63599048306",
+    "BadgeRenderer": "0xBBb4F657d2249DC4762Fa7B36DBEcA5C56302b53",
+    "RDAOToken": "0xd1B2E81EA9Ce2f77758Bd3b1cF3Bc71F2608e00b",
+    "ProposalBoard": "0x861f458ADce30B573d98b2510e68B78E8BFcd431",
+    "PeerReview": "0xE30Ff05Ed5A34509789D753b2775C67a5aC933b8",
+    "JoinRegistry": "0xaE99D6208E335C72Ff8e3d48F5C453768B80cD0c",
+    "MemberProfile": "0xaa7d935063F48029aaa0c51801e1De5467Bdfe76",
+    "MembershipFeeVault": "0xB5FA60eAabe05ED93Ea9D0760C8458D8696517Fd",
+    "CharterStakeVault": "0x316cC3247c71a2c0E4fB4D2ed20f8fe0AdD06b58"
+  }
+}
