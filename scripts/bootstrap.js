@@ -67,7 +67,7 @@ async function main() {
 
   fs.writeFileSync(MEMBERS_FILE, JSON.stringify(members, null, 2));
   console.log(`\n✅ 부트스트랩 완료. 지갑 정보 저장: ${MEMBERS_FILE}`);
-  console.log("다음: npx hardhat run scripts/simulate.js --network sepolia");
+  console.log("다음: npx hardhat run scripts/demo-governance.js --network sepolia");
 }
 
 main().catch((error) => {

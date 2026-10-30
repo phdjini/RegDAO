@@ -1,11 +1,26 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
+const { subtask } = require("hardhat/config");
+const { TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD } = require("hardhat/builtin-tasks/task-names");
+
+// Offline builds: LOCAL_SOLC=1 compiles with the solc-js package in node_modules
+// instead of downloading a compiler (useful behind restrictive networks / in CI).
+const LOCAL_SOLC = process.env.LOCAL_SOLC === "1";
+const SOLC_VERSION = LOCAL_SOLC ? require("solc/package.json").version : "0.8.24";
+if (LOCAL_SOLC) {
+  subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD, async () => ({
+    compilerPath: require.resolve("solc/soljson.js"),
+    isSolcJs: true,
+    version: SOLC_VERSION,
+    longVersion: require("solc").version(),
+  }));
+}
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
 
 module.exports = {
   solidity: {
-    version: "0.8.24",
+    version: SOLC_VERSION,
     settings: {
       optimizer: { enabled: true, runs: 200 },
       evmVersion: "cancun",
@@ -13,6 +28,9 @@ module.exports = {
     },
   },
   networks: {
+    hardhat: {
+      accounts: { count: 120 }, // scripts/gas-report.js needs up to 100 endorsers
+    },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
       accounts: [PRIVATE_KEY],
