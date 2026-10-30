@@ -1,10 +1,9 @@
 require("dotenv").config();
+const { ethers } = require("ethers");
 const { board, profile, peerReview, badge } = require("./chain");
 const { rankCandidates } = require("./claude");
 const { sendReviewerInviteEmail } = require("./email");
 const { sendSms } = require("./sms");
-
-const SUPPORT_THRESHOLD = Number(process.env.PEER_REVIEW_SUPPORT_THRESHOLD || 20);
 
 /** 프로필이 등록된 전체 회원 목록을 온체인에서 불러온다. */
 async function loadAllProfiledMembers() {
@@ -24,7 +23,7 @@ async function loadExistingSourcePostIds() {
   const set = new Set();
   for (let id = 1; id <= count; id++) {
     const c = await peerReview.cases(id);
-    if (Number(c.caseType) === 0) set.add(Number(c.sourcePostId));
+    if (Number(c.caseType) === 0 && Number(c.status) !== 6 /* CANCELED */) set.add(Number(c.sourcePostId));
   }
   return set;
 }
@@ -37,7 +36,8 @@ async function loadPendingEditorCases() {
   const pending = [];
   for (let id = 1; id <= count; id++) {
     const c = await peerReview.cases(id);
-    if (Number(c.status) === 0 /* EDITOR_PENDING */) pending.push(c);
+    // 아직 에디터가 지정되지 않은 케이스만 (지정 후 수락 대기 중인 케이스는 재배정하지 않음)
+    if (Number(c.status) === 0 /* EDITOR_PENDING */ && c.chiefEditor === ethers.ZeroAddress) pending.push(c);
   }
   return pending;
 }
@@ -50,8 +50,14 @@ async function caseInfoFor(c) {
   return { title: `성과 주장 #${c.id}`, content: c.description };
 }
 
+const REVIEWER_MIN_TIER = 3; // Member-Gold
+
 async function inviteTopReviewers(caseId, caseInfo, candidates, excludeAddrs) {
-  const pool = candidates.filter((c) => !excludeAddrs.includes(c.address.toLowerCase()));
+  const pool = [];
+  for (const c of candidates) {
+    if (excludeAddrs.includes(c.address.toLowerCase())) continue;
+    if (Number(await badge.tierOf(c.address)) >= REVIEWER_MIN_TIER) pool.push(c);
+  }
   if (pool.length === 0) {
     console.warn(`[case ${caseId}] 초대 가능한 리뷰어 후보가 없습니다.`);
     return;
@@ -85,7 +91,8 @@ async function inviteTopReviewers(caseId, caseInfo, candidates, excludeAddrs) {
   }
 }
 
-/** EDITOR_PENDING 케이스 하나에 대해 에디터를 배정하고 리뷰어를 초대한다.
+/** EDITOR_PENDING 케이스 하나에 대해 에디터를 배정한다. 리뷰어 초대는 두 에디터가
+ *  예치금을 걸고 수락해 RECRUITING_REVIEWERS가 된 뒤 recruitReviewers()에서 진행한다.
  *  Council+ 후보가 2명 미만이면 아무 것도 하지 않고 다음 스캔에서 재시도하도록 남겨둔다. */
 async function assignEditorsAndRecruit(c) {
   const caseId = Number(c.id);
@@ -129,13 +136,23 @@ async function assignEditorsAndRecruit(c) {
   if (coProfile?.phone) {
     await sendSms(coProfile.phone, `[RegDAO] "${caseInfo.title}" 안건의 보조에디터로 배정되었습니다.`);
   }
+}
 
-  await inviteTopReviewers(
-    caseId,
-    caseInfo,
-    profiledMembers,
-    [claimant.toLowerCase(), chief.toLowerCase(), coEditor.toLowerCase()]
-  );
+/** 두 에디터가 수락해 RECRUITING_REVIEWERS가 되었고 아직 초대가 없는 케이스에 리뷰어를 초대한다. */
+async function recruitReviewers(profiledMembers) {
+  const count = Number(await peerReview.caseCount());
+  for (let id = 1; id <= count; id++) {
+    const c = await peerReview.cases(id);
+    if (Number(c.status) !== 1 /* RECRUITING_REVIEWERS */) continue;
+    if (Number(await peerReview.reviewersCount(id)) > 0) continue;
+    try {
+      await inviteTopReviewers(id, await caseInfoFor(c), profiledMembers, [
+        c.claimant.toLowerCase(), c.chiefEditor.toLowerCase(), c.coEditor.toLowerCase(),
+      ]);
+    } catch (e) {
+      console.error(`case ${id} 리뷰어 초대 중 오류:`, e.message || e);
+    }
+  }
 }
 
 async function main() {
@@ -147,25 +164,23 @@ async function main() {
     return;
   }
 
-  // 1) 지지수 임계값을 넘긴 신규 정책제안 안건을 케이스로 개시
+  // 1) N_RE >= theta_PR에 도달해 온체인에서 referred로 표시된 안건을 케이스로 개시
   const existingPostIds = await loadExistingSourcePostIds();
   const postCount = Number(await board.postCount());
   for (let postId = 1; postId <= postCount; postId++) {
     if (existingPostIds.has(postId)) continue;
     const post = await board.posts(postId);
-    if (!post.exists) continue;
-    if (Number(post.supportCount) >= SUPPORT_THRESHOLD) {
-      try {
-        console.log(`\n안건 #${postId} "${post.title}" 지지 ${post.supportCount} — 피어리뷰 케이스 개시`);
-        const tx = await peerReview.initiateCase(0 /* POLICY_PROPOSAL */, postId, post.author, "");
-        await tx.wait();
-      } catch (e) {
-        console.error(`안건 #${postId} 케이스 개시 중 오류:`, e.message || e);
-      }
+    if (!post.exists || !post.referred || Number(post.outcome) !== 0) continue;
+    try {
+      console.log(`\n안건 #${postId} "${post.title}" 검증된 RE ${post.verifiedCount}건 — 피어리뷰 케이스 개시`);
+      const tx = await peerReview.initiateCase(0 /* POLICY_PROPOSAL */, postId, post.author, "");
+      await tx.wait();
+    } catch (e) {
+      console.error(`안건 #${postId} 케이스 개시 중 오류:`, e.message || e);
     }
   }
 
-  // 2) 에디터가 아직 배정되지 않은 모든 케이스(신규 + 지난 실행 보류분)에 대해 배정·초대 시도
+  // 2) 에디터가 아직 지정되지 않은 모든 케이스(신규 + 지난 실행 보류분)에 대해 배정 시도
   const pendingCases = await loadPendingEditorCases();
   for (const c of pendingCases) {
     try {
@@ -174,6 +189,9 @@ async function main() {
       console.error(`case ${c.id} 에디터 배정 중 오류:`, e.message || e);
     }
   }
+
+  // 3) 에디터 수락이 끝난 케이스에 리뷰어 초대
+  await recruitReviewers(profiledMembers);
 
   console.log("\n=== 스캔 완료 ===");
 }

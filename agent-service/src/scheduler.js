@@ -1,5 +1,5 @@
 require("dotenv").config();
-const { peerReview, profile, badge } = require("./chain");
+const { peerReview, profile, badge, board } = require("./chain");
 const { rankCandidates } = require("./claude");
 const { sendReviewerInviteEmail } = require("./email");
 
@@ -25,7 +25,7 @@ async function escalateTimedOutInvites() {
   for (let caseId = 1; caseId <= caseCount; caseId++) {
     const c = await peerReview.cases(caseId);
     const status = Number(c.status);
-    if (status !== 1 && status !== 2) continue; // 리뷰어 모집중/리뷰중이 아니면 스킵
+    if (status !== 1) continue; // 리뷰어 모집 중(RECRUITING_REVIEWERS)인 케이스만 재초대 가능
 
     const reviewerCount = Number(await peerReview.reviewersCount(caseId));
     const alreadyInvited = [];
@@ -43,7 +43,11 @@ async function escalateTimedOutInvites() {
 
       // 아직 초대되지 않은 다음 후보를 Claude로 다시 랭킹해서 1명 추가 초대
       const excludeAddrs = [c.claimant.toLowerCase(), c.chiefEditor.toLowerCase(), c.coEditor.toLowerCase(), ...alreadyInvited];
-      const pool = profiledMembers.filter((m) => !excludeAddrs.includes(m.address.toLowerCase()));
+      const pool = [];
+      for (const m of profiledMembers) {
+        if (excludeAddrs.includes(m.address.toLowerCase())) continue;
+        if (Number(await badge.tierOf(m.address)) >= 3 /* Member-Gold */) pool.push(m);
+      }
       if (pool.length === 0) {
         console.warn(`[case ${caseId}] 재배정할 후보가 더 이상 없습니다.`);
         continue;
@@ -64,9 +68,45 @@ async function escalateTimedOutInvites() {
   }
 }
 
+/** 리뷰 마감이 지난 IN_REVIEW 케이스에서 미제출 리뷰어를 no-show로 처리한다 (예치금 일부 소각, 좌석 재개방). */
+async function markNoShows() {
+  const caseCount = Number(await peerReview.caseCount());
+  const nowSec = Math.floor(Date.now() / 1000);
+  for (let caseId = 1; caseId <= caseCount; caseId++) {
+    const c = await peerReview.cases(caseId);
+    if (Number(c.status) !== 2 /* IN_REVIEW */) continue;
+    const st = await peerReview.editorState(caseId);
+    if (nowSec <= Number(st.reviewDeadline)) continue;
+    const n = Number(await peerReview.reviewersCount(caseId));
+    for (let i = 0; i < n; i++) {
+      const inv = await peerReview.reviewersOf(caseId, i);
+      if (Number(inv.status) === 1 /* ACCEPTED */ && !inv.reviewSubmitted) {
+        console.log(`[case ${caseId}] 리뷰어 #${i} (${inv.reviewer}) 마감 초과 -> no-show 처리`);
+        await (await peerReview.markNoShow(caseId, i)).wait();
+      }
+    }
+  }
+}
+
+/** 판정이 난 정책제안 케이스의 예치금을 정산한다 (누구나 호출 가능한 settle을 에이전트가 대신 호출). */
+async function settleDecided() {
+  const caseCount = Number(await peerReview.caseCount());
+  for (let caseId = 1; caseId <= caseCount; caseId++) {
+    const c = await peerReview.cases(caseId);
+    const status = Number(c.status);
+    if (Number(c.caseType) !== 0 || ![3, 4, 5].includes(status)) continue;
+    const post = await board.posts(c.sourcePostId);
+    if (Number(post.outcome) !== 0 /* OPEN */) continue;
+    console.log(`[case ${caseId}] 안건 #${c.sourcePostId} 예치금 정산`);
+    await (await board.settle(c.sourcePostId, caseId)).wait();
+  }
+}
+
 async function main() {
   console.log("=== 초대 시간초과 점검 실행 ===", new Date().toISOString());
   await escalateTimedOutInvites();
+  await markNoShows();
+  await settleDecided();
   console.log("=== 점검 완료 ===");
 }
 

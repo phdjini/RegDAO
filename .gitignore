@@ -5,3 +5,5 @@ cache/
 coverage/
 deploy_log.txt
 members.json 
+deployments/hardhat.json
+deployments/localhost.json

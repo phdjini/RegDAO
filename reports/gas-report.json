@@ -1,0 +1,52 @@
+{
+  "deployment": {
+    "BadgeSBT": 2608895,
+    "RDAOToken": 973118,
+    "ProposalBoard": 3839444,
+    "PeerReview": 3754747
+  },
+  "lifecycle": {
+    "ProposalBoard.createPost (incl. S_PRO transfer)": 267637,
+    "ProposalBoard.endorsePost (incl. S_RE transfer)": 390403,
+    "ProposalBoard.recordFCC — first pass (pays dP_RE and dP_PRO)": 171791,
+    "ProposalBoard.recordFCC — later pass (dP_RE only)": 112401,
+    "ProposalBoard.recordFCC — pass that triggers referral": 117124,
+    "PeerReview.initiateCase": 182940,
+    "PeerReview.assignEditors": 81836,
+    "PeerReview.acceptEditorship (incl. S_PPR transfer)": 110407,
+    "PeerReview.inviteReviewer": 102747,
+    "PeerReview.acceptInvite (incl. S_PPR transfer)": 122475,
+    "PeerReview.submitReview": 105677,
+    "PeerReview.submitReview — final (verdict + panel payout)": 298180,
+    "ProposalBoard.settle — approved, 3 REs": 148456,
+    "PeerReview.publishFinalProposal": 159893,
+    "ProposalBoard.settle — rejected, 3 REs": 314462
+  },
+  "settleScaling": [
+    {
+      "endorsements": 3,
+      "approved": 148456,
+      "rejected": 314462
+    },
+    {
+      "endorsements": 10,
+      "approved": 315196,
+      "rejected": 780298
+    },
+    {
+      "endorsements": 25,
+      "approved": 672498,
+      "rejected": 1778520
+    },
+    {
+      "endorsements": 50,
+      "approved": 1268003,
+      "rejected": 3442225
+    },
+    {
+      "endorsements": 100,
+      "approved": 2459020,
+      "rejected": 6769642
+    }
+  ]
+}

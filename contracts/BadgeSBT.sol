@@ -45,6 +45,7 @@ contract BadgeSBT is ERC721, AccessControl {
     mapping(uint256 => address) public ownerOfBadge;
     uint256 private _nextTokenId = 1;
     address public renderer;
+    uint256 public memberCount; // |M| — number of live badges; used for the referral threshold theta_PR
 
     // tier 0..5 진입에 필요한 최소 누적 포인트
     uint256[6] public tierThresholds = [0, 100, 300, 600, 1200, 2500];
@@ -90,6 +91,7 @@ contract BadgeSBT is ERC721, AccessControl {
         points[member] = tierThresholds[tier];
         tokenIdOf[member] = tokenId;
         ownerOfBadge[tokenId] = member;
+        memberCount += 1;
         _safeMint(member, tokenId);
         emit BadgeMinted(member, tokenId);
     }
@@ -160,6 +162,7 @@ contract BadgeSBT is ERC721, AccessControl {
         if (tiersDown >= oldTier + 1) {
             badges[member].exists = false;
             points[member] = 0;
+            memberCount -= 1;
             uint256 tokenId = tokenIdOf[member];
             _burn(tokenId);
             emit Slashed(member, oldTier, 0, reason);

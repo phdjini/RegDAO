@@ -7,6 +7,7 @@ const { verifyToken } = require("./email");
 const { peerReview } = require("./chain");
 const scanNewCases = require("./scanNewCases");
 const scheduler = require("./scheduler");
+const processFCC = require("./processFCC");
 const assignJoinReviewers = require("./assignJoinReviewers");
 
 const app = express();
@@ -21,25 +22,23 @@ app.get("/invite/respond", async (req, res) => {
     const payload = verifyToken(token);
     const { caseId, inviteIndex, action, role } = payload;
 
-    if (role === "editor") {
-      // 에디터는 배정 즉시 확정되는 구조라 별도 수락 처리 없이 안내만 표시
-      return res.send(renderPage("확인되었습니다", "에디터 위촉은 배정과 동시에 확정됩니다. 별도 조치가 필요하지 않습니다."));
+    const dashboard = process.env.DASHBOARD_URL || "대시보드";
+    if (action === "accept") {
+      // 수락은 예치금(S_PPR) 스테이킹이 필요하므로 본인 지갑으로 직접 서명해야 한다.
+      const how = role === "editor" ? "PeerReview.acceptEditorship" : "PeerReview.acceptInvite";
+      return res.send(renderPage(
+        "지갑으로 수락을 완료해 주세요",
+        `수락하려면 ${dashboard}에서 지갑을 연결한 뒤 ${how}(${caseId}${role === "editor" ? "" : ", " + inviteIndex})를 호출해 예치금을 걸어야 합니다. 예치금은 리뷰를 마치면 판정 방향과 무관하게 전액 반환되고 RDAO 보상이 지급됩니다.`
+      ));
     }
 
-    if (inviteIndex < 0) {
-      return res.status(400).send(renderPage("오류", "잘못된 초대 정보입니다."));
+    if (role === "editor" || inviteIndex < 0) {
+      return res.send(renderPage("확인되었습니다", "에디터 거절 의사가 전달되었습니다. 에이전트가 다음 스캔에서 다른 에디터를 배정합니다."));
     }
 
-    const accepted = action === "accept";
-    const tx = await peerReview.recordReviewerResponse(caseId, inviteIndex, accepted);
+    const tx = await peerReview.declineInvite(caseId, inviteIndex);
     await tx.wait();
-
-    res.send(renderPage(
-      accepted ? "수락 완료" : "거절 처리 완료",
-      accepted
-        ? "리뷰어 참여를 수락하셨습니다. 곧 비공개 질의응답 안내 메일을 받으실 예정입니다."
-        : "리뷰어 초대를 거절하셨습니다. 참여해주셔서 감사합니다."
-    ));
+    res.send(renderPage("거절 처리 완료", "리뷰어 초대를 거절하셨습니다. 참여해주셔서 감사합니다."));
   } catch (e) {
     console.error(e);
     res.status(400).send(renderPage("처리 실패", "이미 응답했거나 유효하지 않은 링크입니다. " + (e.message || "")));
@@ -88,6 +87,7 @@ app.get("/health", (req, res) => res.json({ ok: true, time: new Date().toISOStri
 // ---------------------------------------------------------------
 cron.schedule("0 * * * *", async () => {
   console.log("[cron] 정기 스캔 시작", new Date().toISOString());
+  try { await processFCC.main(); } catch (e) { console.error("[cron] FCC 오류:", e); }
   try { await scanNewCases.main(); } catch (e) { console.error("[cron] scan 오류:", e); }
   try { await scheduler.main(); } catch (e) { console.error("[cron] escalate 오류:", e); }
   try { await assignJoinReviewers.main(); } catch (e) { console.error("[cron] join 배정 오류:", e); }

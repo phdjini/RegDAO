@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "scan": "node src/scanNewCases.js",
     "escalate": "node src/scheduler.js",
-    "assign-join": "node src/assignJoinReviewers.js"
+    "assign-join": "node src/assignJoinReviewers.js",
+    "fcc": "node src/processFCC.js",
+    "test": "node --test test/fcc.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

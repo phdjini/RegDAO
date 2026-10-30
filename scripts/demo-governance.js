@@ -1,4 +1,4 @@
-// scripts/simulate.js
+// scripts/demo-governance.js
 //
 // 목적: bootstrap.js로 만든 멤버들을 이용해
 //   1) newbie1에 대해 founder 3명이 지지(endorse) -> 자동 레벨업 확인
@@ -6,7 +6,7 @@
 // 까지 실행한다. 투표 종료(실제 3일 대기) 후 집행은 execute-proposal.js에서 별도 진행.
 //
 // 사용법:
-//   BADGE_ADDRESS=0x... GOV_ADDRESS=0x... npx hardhat run scripts/simulate.js --network sepolia
+//   BADGE_ADDRESS=0x... GOV_ADDRESS=0x... npx hardhat run scripts/demo-governance.js --network sepolia
 
 const hre = require("hardhat");
 const fs = require("fs");

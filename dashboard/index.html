@@ -235,7 +235,6 @@
       <div class="config-group"><label>Pinata JWT (첨부파일 IPFS 업로드용, 선택)</label><input id="cfgPinataJwt" placeholder="pinata.cloud에서 발급받은 JWT" /></div>
       <div class="config-group"><label>RDAOToken</label><input id="cfgRdao" class="mono" /></div>
       <div class="config-group"><label>MembershipFeeVault</label><input id="cfgFeeVault" class="mono" /></div>
-      <div class="config-group"><label>ProposalStakeVault</label><input id="cfgBoardStake" class="mono" /></div>
       <div class="config-group"><label>CharterStakeVault</label><input id="cfgCharterStake" class="mono" /></div>
       <button id="saveCfgBtn" class="btn ghost small">저장 &amp; 다시 불러오기</button>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;">
@@ -583,7 +582,7 @@ const TYPE_PILLS = ["pill-neutral", "pill-revoked", "pill-pending", "pill-active
 const CATEGORY_LABELS = ["규제개선 제안","업계 애로사항","세미나 연사 초빙","언론 기고","기타 기여"];
 const CASE_STATUS_NAMES = ["동료검토 상신","동료검토 진행중(리뷰어 모집)","동료검토 진행중(심사중)","의안상정","의안상정보류","발행됨","취소됨"];
 const CASE_STATUS_PILL = ["pill-pending","pill-pending","pill-pending","pill-active","pill-revoked","pill-active","pill-neutral"];
-const INVITE_STATUS_NAMES = ["초대됨","수락함","거절함","시간초과"];
+const INVITE_STATUS_NAMES = ["초대됨","수락함(예치 완료)","거절함","시간초과","미제출(no-show)"];
 const CASE_TYPE_NAMES = ["정책제안", "성과주장"];
 
 const PERMISSION_ACTIONS = [
@@ -603,8 +602,8 @@ const PERMISSION_LEVELS = [
 let readProvider, browserProvider, signer, signerAddress = null;
 let badgeRead, govRead, joinRead, charterRead, boardRead, profileRead, peerReviewRead;
 let badgeWrite, govWrite, joinWrite, charterWrite, boardWrite, profileWrite, peerReviewWrite;
-let rdaoRead, feeVaultRead, boardStakeRead, charterStakeRead;
-let rdaoWrite, feeVaultWrite, boardStakeWrite, charterStakeWrite;
+let rdaoRead, feeVaultRead, charterStakeRead;
+let rdaoWrite, feeVaultWrite, charterStakeWrite;
 let rdaoDecimals = 18;
 let allEndorsements = [];
 let peerReviewBySourcePost = {};
@@ -718,7 +717,6 @@ function loadCfg(){
   const pinataJwt = localStorage.getItem("dao_pinata_jwt") || "";
   const rdaoAddr = localStorage.getItem("dao_rdao") || "";
   const feeVaultAddr = localStorage.getItem("dao_feevault") || "";
-  const boardStakeAddr = localStorage.getItem("dao_boardstake") || "";
   const charterStakeAddr = localStorage.getItem("dao_charterstake") || "";
   document.getElementById("cfgRpc").value = rpc;
   document.getElementById("cfgBadge").value = badge;
@@ -732,10 +730,9 @@ function loadCfg(){
   document.getElementById("cfgPinataJwt").value = pinataJwt;
   document.getElementById("cfgRdao").value = rdaoAddr;
   document.getElementById("cfgFeeVault").value = feeVaultAddr;
-  document.getElementById("cfgBoardStake").value = boardStakeAddr;
   document.getElementById("cfgCharterStake").value = charterStakeAddr;
   return {rpc, badge, gov, charter, board, join, profile: profileAddr, peerReview: peerReviewAddr, agentUrl, pinataJwt,
-    rdao: rdaoAddr, feeVault: feeVaultAddr, boardStake: boardStakeAddr, charterStake: charterStakeAddr};
+    rdao: rdaoAddr, feeVault: feeVaultAddr, charterStake: charterStakeAddr};
 }
 
 function saveCfg(){
@@ -751,7 +748,6 @@ function saveCfg(){
   localStorage.setItem("dao_pinata_jwt", document.getElementById("cfgPinataJwt").value.trim());
   localStorage.setItem("dao_rdao", document.getElementById("cfgRdao").value.trim());
   localStorage.setItem("dao_feevault", document.getElementById("cfgFeeVault").value.trim());
-  localStorage.setItem("dao_boardstake", document.getElementById("cfgBoardStake").value.trim());
   localStorage.setItem("dao_charterstake", document.getElementById("cfgCharterStake").value.trim());
   init();
 }
@@ -789,7 +785,6 @@ async function init(){
   }
   if(cfg.rdao) rdaoRead = new ethers.Contract(cfg.rdao, RDAO_ABI, readProvider);
   if(cfg.feeVault) feeVaultRead = new ethers.Contract(cfg.feeVault, FEE_VAULT_ABI, readProvider);
-  if(cfg.boardStake) boardStakeRead = new ethers.Contract(cfg.boardStake, BOARD_STAKE_ABI, readProvider);
   if(cfg.charterStake) charterStakeRead = new ethers.Contract(cfg.charterStake, CHARTER_STAKE_ABI, readProvider);
 
   renderTierLegend();
@@ -1091,12 +1086,12 @@ async function loadPeerReview(){
         title = post.title; content = post.content; attachmentURI = post.attachmentURI;
       }catch(e){}
     }
-    const supportList = allEndorsements.filter(e => e.exists && Number(e.targetType) === 0 && Number(e.targetId) === Number(c.sourcePostId) && e.isSupport);
+    const supportList = allEndorsements.filter(e => e.exists && Number(e.postId) === Number(c.sourcePostId) && e.isSupport);
     const supportHtml = supportList.length
-      ? supportList.map(e => `<div class="endorsement-item support${e.counted?' counted':''}">
+      ? supportList.map(e => `<div class="endorsement-item support${Number(e.fcc)===1?' counted':''}">
           <div style="font-size:11px;font-weight:700;color:var(--moss);">👍 찬성 · <span class="mono">${short(e.endorser)}</span></div>
           <div class="endorsement-reason">${escapeHtml(e.reason)}</div>
-          <div class="endorsement-meta"><span>동의(uphold) ${e.upholdCount.toString()}건${e.counted?' · 검증완료':''}</span></div>
+          <div class="endorsement-meta"><span>${FCC_LABELS[Number(e.fcc)]}</span></div>
         </div>`).join("")
       : '<div class="empty-state">등록된 찬성의견이 없습니다.</div>';
     const attachmentHtml = attachmentURI ? `<div style="margin:8px 0;"><a href="${attachmentURI}" target="_blank" rel="noopener" class="btn small ghost">📎 첨부파일 보기</a></div>` : "";
@@ -1179,7 +1174,17 @@ async function fillCaseModalDetails(id){
 
   let actionsHtml = "";
   const isEditor = signerAddress && (c.chiefEditor.toLowerCase() === signerAddress.toLowerCase() || c.coEditor.toLowerCase() === signerAddress.toLowerCase());
-  if(status === 3 && isEditor){
+  const isChief = signerAddress && c.chiefEditor.toLowerCase() === signerAddress.toLowerCase();
+  const es = await peerReviewRead.editorState(id);
+  const stakeAmt = await peerReviewRead.panelStake();
+  if(status === 0 && isEditor && !(isChief ? es.chiefAccepted : es.coAccepted)){
+    actionsHtml = `<div style="margin-top:10px;"><button class="btn small seal" onclick="acceptEditorRole(${id})">에디터 수락 (RDAO ${fmtRdao(stakeAmt)} 예치)</button>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">예치금은 판정 방향과 무관하게 심사 완료 시 전액 반환되고 RDAO 보상이 지급됩니다.</div></div>`;
+  } else if(status === 1 && mySlot && mySlot.status === 0){
+    actionsHtml = `<div style="margin-top:10px;display:flex;gap:6px;">
+      <button class="btn small seal" onclick="acceptReviewInvite(${id},${mySlot.index})">리뷰어 수락 (RDAO ${fmtRdao(stakeAmt)} 예치)</button>
+      <button class="btn small ghost" onclick="declineReviewInvite(${id},${mySlot.index})">거절</button></div>`;
+  } else if(status === 3 && isEditor){
     actionsHtml = `<div class="reason-form" style="flex-direction:column;">
       <input id="pubTitle-${id}" placeholder="최종 정책제안서 제목" style="margin-bottom:6px;padding:8px;border:1px solid var(--line-strong);border-radius:3px;background:var(--bg-2);color:var(--ink);">
       <input id="pubDocUri-${id}" placeholder="전문 링크 (IPFS/문서 URL)" style="margin-bottom:6px;padding:8px;border:1px solid var(--line-strong);border-radius:3px;background:var(--bg-2);color:var(--ink);">
@@ -1195,16 +1200,43 @@ async function fillCaseModalDetails(id){
       </div>
     </div>`;
   }
-  if((status === 3 || status === 4) && boardStakeWrite && Number(c.caseType) === 0){
-    actionsHtml += `<div style="margin-top:10px;"><button class="btn small ghost" onclick="resolveBoardStake(${c.sourcePostId},${id})">예치금 정산</button></div>`;
+  if((status === 3 || status === 4 || status === 5) && boardWrite && Number(c.caseType) === 0){
+    const post = await boardRead.posts(Number(c.sourcePostId));
+    if(Number(post.outcome) === 0){
+      actionsHtml += `<div style="margin-top:10px;"><button class="btn small ghost" onclick="settleProposal(${c.sourcePostId},${id})">예치금 정산 (누구나 호출 가능)</button></div>`;
+    }
   }
   const aw = document.getElementById(`caseActionsWrap-${id}`);
   if(aw) aw.innerHTML = actionsHtml;
 }
 
-async function resolveBoardStake(postId, caseId){
+async function acceptEditorRole(caseId){
   try{
-    const tx = await boardStakeWrite.resolve(postId, caseId);
+    const cfg = loadCfg();
+    await ensureRdaoAllowance(cfg.peerReview, await peerReviewRead.panelStake());
+    const tx = await peerReviewWrite.acceptEditorship(caseId);
+    await tx.wait();
+    alert("에디터 수락과 예치가 완료되었습니다.");
+    await fillCaseModalDetails(caseId);
+  }catch(e){ alert(friendlyError(e)); }
+}
+async function acceptReviewInvite(caseId, inviteIndex){
+  try{
+    const cfg = loadCfg();
+    await ensureRdaoAllowance(cfg.peerReview, await peerReviewRead.panelStake());
+    const tx = await peerReviewWrite.acceptInvite(caseId, inviteIndex);
+    await tx.wait();
+    alert("리뷰어 수락과 예치가 완료되었습니다.");
+    await fillCaseModalDetails(caseId);
+  }catch(e){ alert(friendlyError(e)); }
+}
+async function declineReviewInvite(caseId, inviteIndex){
+  try{ const tx = await peerReviewWrite.declineInvite(caseId, inviteIndex); await tx.wait(); await fillCaseModalDetails(caseId); }
+  catch(e){ alert(friendlyError(e)); }
+}
+async function settleProposal(postId, caseId){
+  try{
+    const tx = await boardWrite.settle(postId, caseId);
     await tx.wait();
     alert("예치금 정산이 완료되었습니다.");
     await loadFees();
@@ -1436,9 +1468,12 @@ function togglePostDetail(postId){
   document.getElementById(`postDetail-${postId}`).innerHTML = renderPostDetail(p);
 }
 
+const FCC_LABELS = ["형식검증(FCC) 대기 중", "FCC 통과 · 검증된 참여로 집계", "FCC 미통과 · 집계 제외"];
 function rawCounts(targetType, targetId){
-  const list = allEndorsements.filter(e => e.exists && Number(e.targetType) === targetType && Number(e.targetId) === Number(targetId));
-  return { support: list.filter(e=>e.isSupport).length, oppose: list.filter(e=>!e.isSupport).length, list };
+  // targetType은 하위호환용 인자 (현재는 게시글 RE만 존재)
+  const list = allEndorsements.filter(e => e.exists && Number(e.postId) === Number(targetId));
+  const verified = list.filter(e => Number(e.fcc) === 1);
+  return { support: verified.filter(e=>e.isSupport).length, oppose: verified.filter(e=>!e.isSupport).length, list };
 }
 
 function renderPostDetail(p){
@@ -1465,14 +1500,17 @@ function openEndorseBox(postId, isSupport){
   const box = document.getElementById(`endorseBox-${postId}`);
   box.style.display = "block";
   box.innerHTML = `<div class="reason-form">
-    <textarea id="reason-${postId}" placeholder="${isSupport ? '찬성' : '반대'}하는 근거를 최소 10자 이상 작성해주세요"></textarea>
+    <textarea id="reason-${postId}" placeholder="${isSupport ? '찬성' : '반대'}하는 근거를 50자 이상, 해당 조항·내용을 지목하고 근거(인용·사례·수치)를 포함해 작성해주세요. 개인정보와 인신공격은 FCC에서 탈락합니다."></textarea>
     <button class="btn small ${isSupport ? '' : 'ghost'}" onclick="submitPostEndorse(${postId}, ${isSupport})">${isSupport ? '👍 찬성 제출' : '👎 반대 제출'}</button>
   </div>`;
 }
 async function submitPostEndorse(postId, isSupport){
   const reason = document.getElementById(`reason-${postId}`).value.trim();
-  if(reason.length < 10){ alert("근거는 최소 10자 이상 작성해주세요."); return; }
+  if([...reason].length < 50){ alert("근거는 최소 50자 이상 작성해주세요."); return; }
   try{
+    const amt = await boardRead.stakeEndorser();
+    if(!confirm(`근거 제출 시 RDAO ${fmtRdao(amt)}개를 예치합니다.\n동료검토에서 의안상정되면 전액 반환 + RDAO 보상, 부결되면 찬성 측은 누적 부결 횟수에 따라 일부 소각되고 반대 측은 전액 반환됩니다.`)) return;
+    await ensureRdaoAllowance(loadCfg().board, amt);
     const tx = await boardWrite.endorsePost(postId, isSupport, reason);
     await tx.wait();
     await loadBoard();
@@ -1489,20 +1527,20 @@ function renderEndorsementList(list){
   if(list.length === 0) return '<div style="font-size:12.5px;color:var(--ink-soft);">아직 근거가 없습니다.</div>';
   return list.map(e => {
     const cls = e.isSupport ? 'support' : 'oppose';
-    const countedCls = e.counted ? ' counted' : '';
-    const canUphold = signerAddress && !e.counted && e.endorser.toLowerCase() !== signerAddress.toLowerCase();
+    const countedCls = Number(e.fcc) === 1 ? ' counted' : '';
+    const canAppeal = signerAddress && Number(e.fcc) === 2 && !e.appealed && e.endorser.toLowerCase() === signerAddress.toLowerCase();
     return `<div class="endorsement-item ${cls}${countedCls}">
       <div style="font-size:11px;font-weight:700;color:${e.isSupport?'var(--moss)':'var(--seal)'};">${e.isSupport?'👍 찬성':'👎 반대'} · <span class="mono">${short(e.endorser)}</span></div>
       <div class="endorsement-reason">${escapeHtml(e.reason)}</div>
       <div class="endorsement-meta">
-        <span>동의 ${e.upholdCount.toString()}명${e.counted ? ' · 포인트 반영 완료' : ' (등급 반영엔 동료 검증 필요)'}</span>
-        ${canUphold ? `<button class="btn small ghost" onclick="upholdEndorsement(${e.id})">이 근거에 동의</button>` : ''}
+        <span>${FCC_LABELS[Number(e.fcc)]}${e.appealed ? ' · 이의신청됨' : ''}</span>
+        ${canAppeal ? `<button class="btn small ghost" onclick="appealEndorsement(${e.id})">FCC 재심 신청</button>` : ''}
       </div>
     </div>`;
   }).join("");
 }
-async function upholdEndorsement(endorsementId){
-  try{ const tx = await boardWrite.uphold(endorsementId); await tx.wait(); await loadBoard(); }
+async function appealEndorsement(endorsementId){
+  try{ const tx = await boardWrite.appealFCC(endorsementId); await tx.wait(); await loadBoard(); }
   catch(e){ alert(friendlyError(e)); }
 }
 
@@ -1567,11 +1605,14 @@ document.getElementById("submitPostBtn").addEventListener("click", async ()=>{
   const attachmentUrl = document.getElementById("newPostAttachmentUrl").value.trim() || pendingAttachmentUrl;
   if(!title || !content){ msg.textContent = "제목과 내용을 모두 입력해주세요."; msg.className="status-msg err"; return; }
   try{
-    msg.textContent = "게시 중…"; msg.className="status-msg";
+    const stakeAmt = await boardRead.stakeProposer();
+    if(!confirm(`제안 등록 시 RDAO ${fmtRdao(stakeAmt)}개를 예치합니다.\n의안상정되면 전액 반환 + RDAO 보상, 부결되면 최근 90일 누적 부결 횟수에 따라 0%·30%·60%·100%가 소각됩니다.`)){ msg.textContent = ""; return; }
+    msg.textContent = "예치 승인(approve) 확인 중…"; msg.className="status-msg";
+    await ensureRdaoAllowance(loadCfg().board, stakeAmt);
+    msg.textContent = "게시 중…";
     const tx = await boardWrite.createPost(category, title, content, attachmentUrl || "");
     await tx.wait();
-    const newPostId = Number(await boardRead.postCount());
-    msg.textContent = "게시글이 등록되었습니다."; msg.className = "status-msg ok";
+    msg.textContent = "게시글 등록 및 예치가 완료되었습니다."; msg.className = "status-msg ok";
     document.getElementById("newPostTitle").value = "";
     document.getElementById("newPostContent").value = "";
     document.getElementById("newPostFile").value = "";
@@ -1580,19 +1621,6 @@ document.getElementById("submitPostBtn").addEventListener("click", async ()=>{
     pendingAttachmentUrl = "";
     await loadBoard();
 
-    if(boardStakeWrite && boardStakeRead){
-      const amt = await boardStakeRead.stakeAmount();
-      const wantStake = confirm(`RDAO ${fmtRdao(amt)}개를 예치하시겠습니까?\n의안상정되면 예치금 전액 + 보너스를 돌려받고, 부결되어도 소각 없이 전액 반환됩니다(완화형).`);
-      if(wantStake){
-        msg.textContent = "예치 승인(approve) 확인 중…"; msg.className="status-msg";
-        const cfg = loadCfg();
-        await ensureRdaoAllowance(cfg.boardStake, amt);
-        msg.textContent = "예치 중…";
-        const stakeTx = await boardStakeWrite.stake(newPostId);
-        await stakeTx.wait();
-        msg.textContent = "게시글 등록 및 예치가 모두 완료되었습니다."; msg.className = "status-msg ok";
-      }
-    }
     setTimeout(closeNewPostModal, 1200);
   }catch(e){ msg.textContent = friendlyError(e); msg.className = "status-msg err"; }
 });
@@ -1631,7 +1659,6 @@ async function connectWallet(){
   if(cfg.peerReview) peerReviewWrite = new ethers.Contract(cfg.peerReview, PEER_REVIEW_ABI, signer);
   if(cfg.rdao) rdaoWrite = new ethers.Contract(cfg.rdao, RDAO_ABI, signer);
   if(cfg.feeVault) feeVaultWrite = new ethers.Contract(cfg.feeVault, FEE_VAULT_ABI, signer);
-  if(cfg.boardStake) boardStakeWrite = new ethers.Contract(cfg.boardStake, BOARD_STAKE_ABI, signer);
   if(cfg.charterStake) charterStakeWrite = new ethers.Contract(cfg.charterStake, CHARTER_STAKE_ABI, signer);
 
   await loadProposalsCache();
@@ -1645,7 +1672,7 @@ async function connectWallet(){
 function disconnectWallet(){
   signer = null; signerAddress = null;
   badgeWrite = govWrite = joinWrite = charterWrite = boardWrite = profileWrite = peerReviewWrite = null;
-  rdaoWrite = feeVaultWrite = boardStakeWrite = charterStakeWrite = null;
+  rdaoWrite = feeVaultWrite = charterStakeWrite = null;
   document.getElementById("walletChip").style.display = "none";
   document.getElementById("connectBtn").style.display = "inline-block";
   document.getElementById("connectBtn").textContent = "지갑 연결";
@@ -1808,15 +1835,17 @@ const JOIN_ABI = [
 ];
 const BOARD_ABI = [
   "function postCount() view returns (uint256)",
-  "function posts(uint256) view returns (uint256 id, address author, uint8 category, string title, string content, string attachmentURI, uint64 createdAt, uint256 supportCount, uint256 opposeCount, bool exists)",
-  "function endorsements(uint256) view returns (uint256 id, uint8 targetType, uint256 targetId, address endorser, bool isSupport, string reason, uint256 upholdCount, bool counted, uint64 createdAt, bool exists)",
+  "function posts(uint256) view returns (uint256 id, address author, uint8 category, string title, string content, string attachmentURI, uint64 createdAt, uint256 supportCount, uint256 opposeCount, uint256 verifiedCount, uint256 stake, bool proposerAwarded, bool referred, uint8 outcome, bool exists)",
+  "function endorsements(uint256) view returns (uint256 id, uint256 postId, address endorser, bool isSupport, string reason, uint8 fcc, uint8 fccMask, bool appealed, uint256 stake, uint64 createdAt, bool exists)",
   "function endorsementCount() view returns (uint256)",
-  "function hasEndorsedTarget(uint8,uint256,address) view returns (bool)",
-  "function hasUpheld(uint256,address) view returns (bool)",
-  "function upholdThreshold() view returns (uint256)",
+  "function hasEndorsed(uint256,address) view returns (bool)",
+  "function referralThreshold() view returns (uint256)",
+  "function stakeProposer() view returns (uint256)",
+  "function stakeEndorser() view returns (uint256)",
   "function createPost(uint8,string,string,string) returns (uint256)",
   "function endorsePost(uint256,bool,string) returns (uint256)",
-  "function uphold(uint256)"
+  "function appealFCC(uint256)",
+  "function settle(uint256,uint256)"
 ];
 const PROFILE_ABI = [
   "function setProfile(string,string[],string,string)",
@@ -1827,7 +1856,12 @@ const PROFILE_ABI = [
 const PEER_REVIEW_ABI = [
   "function caseCount() view returns (uint256)",
   "function cases(uint256) view returns (uint256 id, uint8 caseType, uint256 sourcePostId, address claimant, string description, address chiefEditor, address coEditor, uint8 status, uint64 createdAt, uint64 publishedAt, uint256 approveCount, bool adopted, string finalTitle, string finalDocumentURI, string finalSummary)",
-  "function reviewersOf(uint256,uint256) view returns (address reviewer, uint8 status, uint64 invitedAt, uint64 respondedAt, bool reviewSubmitted, bool approve, string reviewURI)",
+  "function reviewersOf(uint256,uint256) view returns (address reviewer, uint8 status, uint64 invitedAt, uint64 respondedAt, bool reviewSubmitted, bool approve, string reviewURI, uint256 stake)",
+  "function editorState(uint256) view returns (bool chiefAccepted, bool coAccepted, uint256 chiefStake, uint256 coStake, uint64 reviewDeadline)",
+  "function panelStake() view returns (uint256)",
+  "function acceptEditorship(uint256)",
+  "function acceptInvite(uint256,uint256)",
+  "function declineInvite(uint256,uint256)",
   "function reviewersCount(uint256) view returns (uint256)",
   "function acceptedReviewerCount(uint256) view returns (uint256)",
   "function submittedReviewCount(uint256) view returns (uint256)",
@@ -1854,14 +1888,6 @@ const FEE_VAULT_ABI = [
   "function createEvent(string,uint256) returns (uint256)",
   "function payEventFee(uint256)",
   "function setEventActive(uint256,bool)"
-];
-const BOARD_STAKE_ABI = [
-  "function stakeAmount() view returns (uint256)",
-  "function bonusBps() view returns (uint256)",
-  "function burnBps() view returns (uint256)",
-  "function stakes(uint256) view returns (address staker, uint256 amount, uint8 status)",
-  "function stake(uint256)",
-  "function resolve(uint256,uint256)"
 ];
 const CHARTER_STAKE_ABI = [
   "function stakeAmount() view returns (uint256)",
