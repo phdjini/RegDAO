@@ -18,6 +18,9 @@ const BOARD_ABI = [
   "function endorsements(uint256) view returns (uint256 id, uint256 postId, address endorser, bool isSupport, string reason, uint8 fcc, uint8 fccMask, bool appealed, uint256 stake, uint64 createdAt, bool exists)",
   "function recordFCC(uint256 endorsementId, uint8 mask)",
   "function settle(uint256 postId, uint256 caseId)",
+  "function revokeExemption(uint256 endorsementId, string evidence)",
+  "function exemptionRevoked(uint256) view returns (bool)",
+  "function endorsementsOf(uint256 postId) view returns (uint256[])",
 ];
 
 const PROFILE_ABI = [

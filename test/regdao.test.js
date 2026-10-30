@@ -183,6 +183,43 @@ describe("RegDAO — manuscript-aligned mechanisms", function () {
       expect(await board.rejectionsInWindow(e4.address)).to.equal(0);
     });
 
+    it("claws back an opposer's dP_RE on rejection, and slashes an opposer whose exemption was revoked", async () => {
+      const { board, badge, rdao, e1, e2, e3, e4, e5 } = ctx;
+      // e5's exemption is revoked in rounds 2 and 3: its own rejection count is then 1 and 2,
+      // so lambda(1) = 0% and lambda(2) = 30% apply
+      for (let round = 1; round <= 3; round++) {
+        const postId = await post(ctx);
+        for (const e of [e1, e2, e3]) await endorse(ctx, postId, e, true);
+        const o1 = await endorse(ctx, postId, e4, false);
+        const o2 = await endorse(ctx, postId, e5, false);
+        if (round >= 2) {
+          await expect(board.revokeExemption(o2, "interaction weight 4 with proposer"))
+            .to.emit(board, "ExemptionRevoked");
+          await expect(board.revokeExemption(Number(o1) - 1, "x")).to.be.revertedWith("ProposalBoard: only opposing REs carry an exemption");
+        }
+        const pts0 = { o1: await badge.pointsOf(e4.address), o2: await badge.pointsOf(e5.address) };
+        const bal0 = { o1: await rdao.balanceOf(e4.address), o2: await rdao.balanceOf(e5.address) };
+        const caseId = await review(ctx, postId, [false, false, false]);
+        await board.settle(postId, caseId);
+        expect(pts0.o1 - (await badge.pointsOf(e4.address))).to.equal(2); // clawed back
+        expect((await rdao.balanceOf(e4.address)) - bal0.o1).to.equal(S_RE); // deposit exempt
+        const burned = S_RE - ((await rdao.balanceOf(e5.address)) - bal0.o2);
+        expect(burned).to.equal(round === 3 ? (S_RE * 3000n) / 10000n : 0n);
+      }
+      expect(await board.rejectionsInWindow(e4.address)).to.equal(0);
+      expect(await board.rejectionsInWindow(e5.address)).to.equal(2);
+    });
+
+    it("opens public settlement only after settleDelay; the agent may settle at once", async () => {
+      const { board, e1, e2, e3, e4 } = ctx;
+      const postId = await post(ctx);
+      for (const e of [e1, e2, e3]) await endorse(ctx, postId, e, true);
+      const caseId = await review(ctx, postId, [true, true, true]);
+      await expect(board.connect(e4).settle(postId, caseId)).to.be.revertedWith("ProposalBoard: settlement window not yet open");
+      await time.increase(DAY + 1);
+      await expect(board.connect(e4).settle(postId, caseId)).to.not.be.reverted;
+    });
+
     it("applies lambda(n) = 0, 30, 60, 100% and resets after the 90-day window", async () => {
       const { board, rdao, proposer, e1, e2, e3 } = ctx;
       const burned = [];
@@ -221,15 +258,17 @@ describe("RegDAO — manuscript-aligned mechanisms", function () {
       expect(nStar).to.equal(2);
     });
 
-    it("lets un-referred proposals expire with full refunds", async () => {
-      const { board, rdao, proposer, e1 } = ctx;
+    it("burns lambda_idle of the proposer's and supporters' deposits when an un-referred proposal expires", async () => {
+      const { board, rdao, proposer, e1, e2 } = ctx;
       const postId = await post(ctx);
-      await endorse(ctx, postId, e1, true);
+      await endorse(ctx, postId, e1, true);   // FCC-passed supporter: burned
+      await endorse(ctx, postId, e2, false);  // opposer: refunded
       await expect(board.expire(postId)).to.be.revertedWith("ProposalBoard: not yet expired");
       await time.increase(91 * DAY);
       await board.expire(postId);
-      expect(await rdao.balanceOf(proposer.address)).to.equal(E(1000));
-      expect(await rdao.balanceOf(e1.address)).to.equal(E(1000));
+      expect(await rdao.balanceOf(proposer.address)).to.equal(E(1000) - (S_PRO * 2000n) / 10000n);
+      expect(await rdao.balanceOf(e1.address)).to.equal(E(1000) - (S_RE * 2000n) / 10000n);
+      expect(await rdao.balanceOf(e2.address)).to.equal(E(1000));
     });
 
     it("rejects an invalid burn schedule", async () => {

@@ -20,7 +20,10 @@ incentives come from a separate transferable utility token, so that authority ca
 | IV-D, Eq. (5) | Two-thirds approval rule | `PeerReview.submitReview` |
 | IV-D2, Table 3 | Lead and associate editors Council+, reviewers Member-Gold+, claimant excluded | `PeerReview.assignEditors`, `PeerReview.inviteReviewer` |
 | IV-E1, Table 5 | Mandatory pre-staking: S_PRO, S_RE, S_PPR | `ProposalBoard.createPost`, `endorsePost`; `PeerReview.acceptEditorship`, `acceptInvite` |
-| V-B, App. A, Eq. (6)–(12) | Progressive slashing λ(n) over a trailing 90-day window; supporters slashed, opposers exempt | `ProposalBoard.settle`, `burnRateBps`, `setBurnSchedule` |
+| V-B, App. A, Eq. (6)–(12) | Progressive slashing λ(n) over a trailing 90-day window; supporters slashed, opposers' deposits exempt | `ProposalBoard.settle`, `burnRateBps`, `setBurnSchedule` |
+| IV-D1, Table 2, App. C-3 | Opposers' ΔP_RE clawed back on rejection; exemption revoked for opposers densely tied to the proposer | `ProposalBoard.settle`, `revokeExemption`; graph check in `agent-service/src/graph.js` |
+| V-D | Non-referral sunset: λ_idle of proposer and supporter deposits burned at T_TTL | `ProposalBoard.expire` |
+| V-E | Random reviewer draw; stratified domain + cross-domain panel when the pool is below N_min | `agent-service/src/panel.js` |
 | App. A-3 | Panel immunity: deposit, points and RDAO regardless of verdict; partial burn only for a no-show | `PeerReview._payPanel`, `PeerReview.markNoShow` |
 | IV-D | LLM-based editor and reviewer matching | `agent-service/src/claude.js`, `scanNewCases.js` |
 | App. B, Table 8 | Deterrence-threshold trajectory | `simulations/deterrence_threshold.py`; verified on-chain in `test/regdao.test.js` |
@@ -36,6 +39,8 @@ incentives come from a separate transferable utility token, so that authority ca
 | S_PRO, S_RE, S_PPR | 30, 20, 10 RDAO | `setStakes`, `PeerReview.setPanelStake` |
 | λ(1), λ(2), λ(3), λ(n≥4) | 0 %, 30 %, 60 %, 100 % | `setBurnSchedule` (must be non-decreasing and end at 100 %) |
 | Rejection window | 90 days | `setRejectionWindow` |
+| T_TTL, λ_idle | 90 days, 20 % | `setPostExpiry`, `setIdleBurnBps` |
+| Public settlement delay | 1 day after the verdict (agent may settle at once) | `setSettleDelay` |
 | Review quorum, review period | 3 reviewers, 14 days | `PeerReview.setReviewerQuorum`, `setReviewPeriod` |
 | No-show burn | 50 % of S_PPR | `PeerReview.setNoShowBurnBps` |
 | Approval rewards | proposer 20, endorser 5, lead editor 30, associate editor 15, reviewer 20 RDAO | `setRewards`, `PeerReview.set*RdaoReward` |
@@ -49,16 +54,19 @@ incentives come from a separate transferable utility token, so that authority ca
 4. When the number of passing REs reaches θ_PR the proposal is marked *referred*, and the agent opens a peer-review case.
 5. Two Council+ editors accept and stake; Gold+ reviewers are invited, accept and stake.
 6. Reviewers submit verdicts. The panel is paid as soon as all reviews are in, whatever the verdict.
-7. Anyone calls `settle`: on approval every deposit is returned with RDAO; on rejection the proposer and supporting
-   endorsers lose λ(n) of their deposit, while opposing endorsers and REs that failed FCC are refunded.
-8. A proposal that never reaches θ_PR can be closed with full refunds after 90 days (`expire`).
+7. Before settling a rejection, the agent revokes the exemption of any opposing endorser densely tied to the proposer in
+   the interaction graph. The agent then settles (anyone may, one day after the verdict): on approval every deposit is
+   returned with RDAO; on rejection the proposer, supporting endorsers and revoked opposers lose λ(n) of their deposit,
+   other opposers are refunded but lose their ΔP_RE, and REs that failed FCC are refunded.
+8. A proposal that never reaches θ_PR expires after T_TTL (`expire`): the proposer and FCC-passed supporters lose
+   λ_idle of their deposits; everyone else is refunded.
 
 ## Build and test
 
 ```bash
 npm install
-npx hardhat test                 # 15 contract tests
-cd agent-service && npm install && npm test   # FCC checklist unit tests
+npx hardhat test                 # 17 contract tests
+cd agent-service && npm install && npm test   # 11 unit tests: FCC checklist, reviewer selection, graph check
 ```
 
 If the Solidity compiler cannot be downloaded (restricted networks), prefix commands with `LOCAL_SOLC=1` to compile with

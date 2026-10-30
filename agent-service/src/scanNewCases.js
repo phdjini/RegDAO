@@ -2,6 +2,7 @@ require("dotenv").config();
 const { ethers } = require("ethers");
 const { board, profile, peerReview, badge } = require("./chain");
 const { rankCandidates } = require("./claude");
+const { selectReviewers } = require("./panel");
 const { sendReviewerInviteEmail } = require("./email");
 const { sendSms } = require("./sms");
 
@@ -56,18 +57,29 @@ async function inviteTopReviewers(caseId, caseInfo, candidates, excludeAddrs) {
   const pool = [];
   for (const c of candidates) {
     if (excludeAddrs.includes(c.address.toLowerCase())) continue;
-    if (Number(await badge.tierOf(c.address)) >= REVIEWER_MIN_TIER) pool.push(c);
+    const tier = Number(await badge.tierOf(c.address));
+    if (tier >= REVIEWER_MIN_TIER) pool.push({ ...c, tier });
   }
   if (pool.length === 0) {
     console.warn(`[case ${caseId}] 초대 가능한 리뷰어 후보가 없습니다.`);
     return;
   }
+  // Claude는 도메인 관련도 순서만 정하고, 실제 선정은 무작위 추출 (H2의 무작위 배정 가정)
   const rankedAddrs = await rankCandidates(caseInfo, pool);
+  const ranked = rankedAddrs.map((a) => pool.find((c) => c.address.toLowerCase() === a.toLowerCase())).filter(Boolean);
   const quorum = Number(await peerReview.reviewerQuorum());
-  const inviteCount = Math.min(rankedAddrs.length, quorum + 2); // 거절 대비 여유 인원 함께 초대
+  const sel = selectReviewers(ranked, (c) => c.tier >= 4 /* Council+ */, {
+    theta: quorum,
+    b: Number(process.env.PANEL_ASSUMED_BIAS || 3),
+    eps: Number(process.env.PANEL_EPS || 0.01),
+    spare: 2, // 거절 대비 여유 인원
+  });
+  console.log(`[case ${caseId}] 리뷰어 선정: ${sel.mode} (도메인 후보 ${sel.domainPool}명, N_min ${sel.nMin})`);
+  const rankedAddrsSel = sel.invite.map((c) => c.address);
+  const inviteCount = rankedAddrsSel.length;
 
   for (let i = 0; i < inviteCount; i++) {
-    const addr = rankedAddrs[i];
+    const addr = rankedAddrsSel[i];
     const candidate = pool.find((c) => c.address.toLowerCase() === addr.toLowerCase());
     const tx = await peerReview.inviteReviewer(caseId, addr);
     await tx.wait();

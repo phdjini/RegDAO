@@ -101,6 +101,7 @@ contract PeerReview {
     mapping(uint256 => uint256) public acceptedReviewerCount;
     mapping(uint256 => uint256) public submittedReviewCount;
     mapping(uint256 => uint256) public caseOfPost;
+    mapping(uint256 => uint64) public decidedAt;
     mapping(address => bool) public hasAgentRole;
 
     event CaseInitiated(uint256 indexed id, CaseType caseType, uint256 sourcePostId, address indexed claimant);
@@ -322,6 +323,7 @@ contract PeerReview {
             // Eq. (5): adopted iff approvals / quorum >= 2/3
             c.adopted = c.approveCount * 3 >= reviewerQuorum * 2;
             c.status = c.adopted ? CaseStatus.AGENDA_ADOPTED : CaseStatus.AGENDA_PENDING;
+            decidedAt[id] = uint64(block.timestamp);
             emit AgendaDecided(id, c.adopted, c.approveCount, submittedReviewCount[id]);
             _payPanel(id);
         }
@@ -416,9 +418,13 @@ contract PeerReview {
         return reviewersOf[id].length;
     }
 
-    function outcomeOf(uint256 caseId) external view returns (uint8 caseType, uint256 sourcePostId, uint8 status) {
+    function outcomeOf(uint256 caseId)
+        external
+        view
+        returns (uint8 caseType, uint256 sourcePostId, uint8 status, uint64 decided)
+    {
         ReviewCase storage c = cases[caseId];
-        return (uint8(c.caseType), c.sourcePostId, uint8(c.status));
+        return (uint8(c.caseType), c.sourcePostId, uint8(c.status), decidedAt[caseId]);
     }
 
     // ---------------------------------------------------------------
