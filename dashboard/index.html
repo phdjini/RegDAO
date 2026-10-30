@@ -1203,7 +1203,7 @@ async function fillCaseModalDetails(id){
   if((status === 3 || status === 4 || status === 5) && boardWrite && Number(c.caseType) === 0){
     const post = await boardRead.posts(Number(c.sourcePostId));
     if(Number(post.outcome) === 0){
-      actionsHtml += `<div style="margin-top:10px;"><button class="btn small ghost" onclick="settleProposal(${c.sourcePostId},${id})">예치금 정산 (누구나 호출 가능)</button></div>`;
+      actionsHtml += `<div style="margin-top:10px;"><button class="btn small ghost" onclick="settleProposal(${c.sourcePostId},${id})">예치금 정산 (판정 1일 후부터 누구나 가능)</button></div>`;
     }
   }
   const aw = document.getElementById(`caseActionsWrap-${id}`);
@@ -1606,7 +1606,7 @@ document.getElementById("submitPostBtn").addEventListener("click", async ()=>{
   if(!title || !content){ msg.textContent = "제목과 내용을 모두 입력해주세요."; msg.className="status-msg err"; return; }
   try{
     const stakeAmt = await boardRead.stakeProposer();
-    if(!confirm(`제안 등록 시 RDAO ${fmtRdao(stakeAmt)}개를 예치합니다.\n의안상정되면 전액 반환 + RDAO 보상, 부결되면 최근 90일 누적 부결 횟수에 따라 0%·30%·60%·100%가 소각됩니다.`)){ msg.textContent = ""; return; }
+    if(!confirm(`제안 등록 시 RDAO ${fmtRdao(stakeAmt)}개를 예치합니다.\n의안상정되면 전액 반환 + RDAO 보상, 부결되면 최근 90일 누적 부결 횟수에 따라 0%·30%·60%·100%가 소각됩니다.\n90일 안에 동료검토로 회부되지 못하면 예치금의 20%가 소각됩니다.`)){ msg.textContent = ""; return; }
     msg.textContent = "예치 승인(approve) 확인 중…"; msg.className="status-msg";
     await ensureRdaoAllowance(loadCfg().board, stakeAmt);
     msg.textContent = "게시 중…";

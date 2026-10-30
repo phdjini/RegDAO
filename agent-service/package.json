@@ -10,7 +10,7 @@
     "escalate": "node src/scheduler.js",
     "assign-join": "node src/assignJoinReviewers.js",
     "fcc": "node src/processFCC.js",
-    "test": "node --test test/fcc.test.js"
+    "test": "node --test test/fcc.test.js test/panel-graph.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

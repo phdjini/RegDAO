@@ -19,7 +19,11 @@ interface IPeerReviewOutcome {
     /// @return caseType 0 = POLICY_PROPOSAL
     /// @return sourcePostId the ProposalBoard post under review
     /// @return status PeerReview.CaseStatus (3 AGENDA_ADOPTED, 4 AGENDA_PENDING, 5 PUBLISHED)
-    function outcomeOf(uint256 caseId) external view returns (uint8 caseType, uint256 sourcePostId, uint8 status);
+    /// @return decidedAt  timestamp at which the verdict was reached (0 if undecided)
+    function outcomeOf(uint256 caseId)
+        external
+        view
+        returns (uint8 caseType, uint256 sourcePostId, uint8 status, uint64 decidedAt);
 }
 
 /**
@@ -40,8 +44,14 @@ interface IPeerReviewOutcome {
  *       approved  -> every participant gets the full deposit back plus an RDAO reward;
  *       rejected  -> proposer and supporting endorsers are slashed by lambda(n), where n is their cumulative
  *                    rejection count within the trailing window (default 90 days); endorsers who opposed
- *                    beforehand are refunded in full.
+ *                    beforehand are refunded in full, but their dP_RE is clawed back so that opposing stakes
+ *                    cannot serve a coalition as a zero-risk hedge. An opposing RE whose author the agent has
+ *                    flagged for dense prior interaction with the proposer loses the exemption and is slashed.
  *     REs that did not pass FCC are refunded in full and earn nothing.
+ *  7) Non-referral sunset: a proposal that does not reach theta_PR within T_TTL expires; the proposer and the
+ *     FCC-passed supporting endorsers lose lambda_idle of their deposits, everyone else is refunded.
+ *  8) Settlement window: after a verdict the agent may settle at once; anyone else may settle after
+ *     settleDelay, which leaves the agent time to record exemption revocations.
  */
 contract ProposalBoard {
     enum Category { REGULATION, INDUSTRY_PAIN_POINT, SPEAKER_INVITATION, MEDIA_CONTRIBUTION, OTHER }
@@ -110,7 +120,9 @@ contract ProposalBoard {
     uint256 public rewardEndorser = 5 ether;        // RDAO reward on approval (per FCC-passed RE)
     uint16[] public burnScheduleBps;                // lambda(1), lambda(2), ...; last value repeats
     uint64 public rejectionWindow = 90 days;
-    uint64 public postExpiry = 90 days;             // un-referred proposals can be closed after this
+    uint64 public postExpiry = 90 days;             // T_TTL: un-referred proposals expire after this
+    uint256 public idleBurnBps = 2000;              // lambda_idle: share of deposits burned on expiry
+    uint64 public settleDelay = 1 days;             // public settlement opens this long after the verdict
     uint256 public maxEndorsementsPerPost = 100;    // bounds settlement gas
     uint8 public minPostTier = 0;
 
@@ -124,6 +136,8 @@ contract ProposalBoard {
     mapping(uint256 => uint256[]) private _postEndorsements;
     mapping(uint256 => mapping(address => bool)) public hasEndorsed;
     mapping(address => uint64[]) private _rejections; // timestamps of rejections that triggered slashing review
+    mapping(uint256 => uint256) public awardedPoints;      // dP_RE actually paid for an RE (for clawback)
+    mapping(uint256 => bool) public exemptionRevoked;      // opposing RE flagged for dense interaction with the proposer
 
     event PostCreated(uint256 indexed id, address indexed author, Category category, string title, uint256 stake);
     event CommentCreated(uint256 indexed id, uint256 indexed postId, address indexed author);
@@ -134,6 +148,8 @@ contract ProposalBoard {
     event ReferredToPeerReview(uint256 indexed postId, uint256 verifiedCount, uint256 threshold);
     event Settled(uint256 indexed postId, uint256 indexed caseId, Outcome outcome);
     event StakeResolved(uint256 indexed postId, address indexed member, uint256 refunded, uint256 burned, uint256 reward, uint256 rejectionCount);
+    event PointsClawedBack(uint256 indexed endorsementId, address indexed member, uint256 points);
+    event ExemptionRevoked(uint256 indexed endorsementId, string evidence);
 
     modifier onlyMember() {
         require(badge.isMember(msg.sender), "ProposalBoard: badge holders only");
@@ -265,6 +281,7 @@ contract ProposalBoard {
         else p.opposeCount += 1;
         p.verifiedCount += 1;
 
+        awardedPoints[endorsementId] = pointsEndorser;
         badge.addPoints(e.endorser, int256(pointsEndorser), "FCC-verified reasoned endorsement");
         emit PreVerificationPoints(e.postId, e.endorser, pointsEndorser, false);
         if (!p.proposerAwarded) {
@@ -294,6 +311,16 @@ contract ProposalBoard {
         emit FCCAppealed(endorsementId);
     }
 
+    /// @notice The agent flags an opposing RE whose author interacts densely with the proposer (interaction-graph
+    ///         check, Section IV-D1). A flagged RE loses the slashing exemption if the proposal is rejected.
+    function revokeExemption(uint256 endorsementId, string calldata evidence) external onlyFccAgent {
+        Endorsement storage e = endorsements[endorsementId];
+        require(e.exists && !e.isSupport, "ProposalBoard: only opposing REs carry an exemption");
+        require(posts[e.postId].outcome == Outcome.OPEN, "ProposalBoard: proposal already closed");
+        exemptionRevoked[endorsementId] = true;
+        emit ExemptionRevoked(endorsementId, evidence);
+    }
+
     /// @notice theta_PR = max(theta_min, ceil(rho * |M|)).
     function referralThreshold() public view returns (uint256) {
         uint256 scaled = (rhoBps * badge.memberCount() + 9999) / 10000;
@@ -310,9 +337,13 @@ contract ProposalBoard {
         require(p.exists && p.referred, "ProposalBoard: proposal not referred");
         require(p.outcome == Outcome.OPEN, "ProposalBoard: already settled");
         require(address(peerReview) != address(0), "ProposalBoard: peer review not set");
-        (uint8 caseType, uint256 sourcePostId, uint8 status) = peerReview.outcomeOf(caseId);
+        (uint8 caseType, uint256 sourcePostId, uint8 status, uint64 decidedAt) = peerReview.outcomeOf(caseId);
         require(caseType == 0 && sourcePostId == postId, "ProposalBoard: case does not match proposal");
         require(status == 3 || status == 4 || status == 5, "ProposalBoard: verdict not final");
+        require(
+            isFccAgent[msg.sender] || block.timestamp >= uint256(decidedAt) + settleDelay,
+            "ProposalBoard: settlement window not yet open"
+        );
 
         bool adopted = status != 4;
         p.outcome = adopted ? Outcome.ADOPTED : Outcome.REJECTED;
@@ -329,27 +360,36 @@ contract ProposalBoard {
                 _resolve(postId, e.endorser, e.stake, 0, 0, 0);            // unverified: refund only
             } else if (adopted) {
                 _resolve(postId, e.endorser, e.stake, 0, rewardEndorser, 0);
-            } else if (e.isSupport) {
+            } else if (e.isSupport || exemptionRevoked[ids[i]]) {
                 _slash(postId, e.endorser, e.stake);                        // advocated the rejected position
             } else {
-                _resolve(postId, e.endorser, e.stake, 0, 0, 0);            // opposed beforehand: exempt
+                _resolve(postId, e.endorser, e.stake, 0, 0, 0);            // opposed beforehand: deposit exempt
+            }
+            if (!adopted && !e.isSupport && awardedPoints[ids[i]] > 0 && badge.isMember(e.endorser)) {
+                uint256 pts = awardedPoints[ids[i]];                        // no zero-risk hedge: dP_RE clawed back
+                awardedPoints[ids[i]] = 0;
+                badge.addPoints(e.endorser, -int256(pts), "opposing RE on a rejected proposal: dP_RE clawed back");
+                emit PointsClawedBack(ids[i], e.endorser, pts);
             }
         }
         emit Settled(postId, caseId, p.outcome);
     }
 
-    /// @notice Closes a proposal that never reached theta_PR within postExpiry; all deposits are returned.
+    /// @notice Non-referral sunset (Section V-D): a proposal that never reached theta_PR within T_TTL expires.
+    ///         The proposer and FCC-passed supporting endorsers lose lambda_idle of their deposits; others are refunded.
     function expire(uint256 postId) external {
         Post storage p = posts[postId];
         require(p.exists && !p.referred, "ProposalBoard: not expirable");
         require(p.outcome == Outcome.OPEN, "ProposalBoard: already closed");
         require(block.timestamp >= p.createdAt + postExpiry, "ProposalBoard: not yet expired");
         p.outcome = Outcome.EXPIRED;
-        _resolve(postId, p.author, p.stake, 0, 0, 0);
+        uint256 burnP = (p.stake * idleBurnBps) / 10000;
+        _resolve(postId, p.author, p.stake - burnP, burnP, 0, 0);
         uint256[] storage ids = _postEndorsements[postId];
         for (uint256 i = 0; i < ids.length; i++) {
             Endorsement storage e = endorsements[ids[i]];
-            _resolve(postId, e.endorser, e.stake, 0, 0, 0);
+            uint256 burnE = (e.fcc == FCCStatus.PASSED && e.isSupport) ? (e.stake * idleBurnBps) / 10000 : 0;
+            _resolve(postId, e.endorser, e.stake - burnE, burnE, 0, 0);
         }
         emit Settled(postId, 0, Outcome.EXPIRED);
     }
@@ -463,6 +503,8 @@ contract ProposalBoard {
     }
     function setRejectionWindow(uint64 v) external onlyAdmin { require(v > 0, "invalid window"); rejectionWindow = v; }
     function setPostExpiry(uint64 v) external onlyAdmin { postExpiry = v; }
+    function setIdleBurnBps(uint256 v) external onlyAdmin { require(v <= 10000, "max 100%"); idleBurnBps = v; }
+    function setSettleDelay(uint64 v) external onlyAdmin { settleDelay = v; }
     function setMaxEndorsementsPerPost(uint256 v) external onlyAdmin { require(v > 0, "invalid cap"); maxEndorsementsPerPost = v; }
     function setMinPostTier(uint8 tier) external onlyAdmin { minPostTier = tier; }
     function setAdmin(address a) external onlyAdmin { admin = a; }
