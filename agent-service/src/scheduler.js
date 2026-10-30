@@ -3,6 +3,7 @@ const { peerReview, profile, badge, board } = require("./chain");
 const { rankCandidates } = require("./claude");
 const { sendReviewerInviteEmail } = require("./email");
 const { assess } = require("./graph");
+const { loadInteractionEdges } = require("./interactions");
 
 const TIMEOUT_MS = Number(process.env.INVITE_TIMEOUT_HOURS || 48) * 3600 * 1000;
 
@@ -44,10 +45,13 @@ async function escalateTimedOutInvites() {
 
       // 아직 초대되지 않은 다음 후보를 Claude로 다시 랭킹해서 1명 추가 초대
       const excludeAddrs = [c.claimant.toLowerCase(), c.chiefEditor.toLowerCase(), c.coEditor.toLowerCase(), ...alreadyInvited];
+      const coiEdges = await loadInteractionEdges(board, Number(c.caseType) === 0 ? Number(c.sourcePostId) : 0);
       const pool = [];
       for (const m of profiledMembers) {
         if (excludeAddrs.includes(m.address.toLowerCase())) continue;
-        if (Number(await badge.tierOf(m.address)) >= 3 /* Member-Gold */) pool.push(m);
+        if (Number(await badge.tierOf(m.address)) < 3 /* Member-Gold */) continue;
+        if (assess(coiEdges, m.address, c.claimant).flag) continue; // 이해상충 배제
+        pool.push(m);
       }
       if (pool.length === 0) {
         console.warn(`[case ${caseId}] 재배정할 후보가 더 이상 없습니다.`);
@@ -89,25 +93,10 @@ async function markNoShows() {
   }
 }
 
-/** 모든 FCC 통과 RE를 (작성자, 제안자) 상호작용 간선으로 모은다. excludePostId의 간선은 제외. */
-async function loadInteractionEdges(excludePostId) {
-  const count = Number(await board.endorsementCount());
-  const authors = new Map();
-  const edges = [];
-  for (let id = 1; id <= count; id++) {
-    const e = await board.endorsements(id);
-    if (!e.exists || Number(e.fcc) !== 1 || Number(e.postId) === Number(excludePostId)) continue;
-    const pid = Number(e.postId);
-    if (!authors.has(pid)) authors.set(pid, (await board.posts(pid)).author);
-    edges.push({ a: e.endorser, b: authors.get(pid) });
-  }
-  return edges;
-}
-
 /** 부결된 안건에서, 제안자와 상호작용이 조밀한 반대 RE의 면제를 정산 전에 철회한다. */
 async function revokeDenseOpposers(postId) {
   const post = await board.posts(postId);
-  const edges = await loadInteractionEdges(postId);
+  const edges = await loadInteractionEdges(board, postId);
   for (const id of await board.endorsementsOf(postId)) {
     const e = await board.endorsements(id);
     if (e.isSupport || Number(e.fcc) !== 1 || (await board.exemptionRevoked(id))) continue;

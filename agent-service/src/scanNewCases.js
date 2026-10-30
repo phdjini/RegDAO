@@ -3,6 +3,8 @@ const { ethers } = require("ethers");
 const { board, profile, peerReview, badge } = require("./chain");
 const { rankCandidates } = require("./claude");
 const { selectReviewers } = require("./panel");
+const { assess } = require("./graph");
+const { loadInteractionEdges } = require("./interactions");
 const { sendReviewerInviteEmail } = require("./email");
 const { sendSms } = require("./sms");
 
@@ -53,10 +55,16 @@ async function caseInfoFor(c) {
 
 const REVIEWER_MIN_TIER = 3; // Member-Gold
 
-async function inviteTopReviewers(caseId, caseInfo, candidates, excludeAddrs) {
+async function inviteTopReviewers(caseId, caseInfo, candidates, excludeAddrs, proposer, sourcePostId) {
+  // 이해상충 배제: 제안자와 상호작용이 조밀한 후보(직접 3회 이상 또는 이웃 겹침 0.5 이상)는 제외
+  const edges = proposer ? await loadInteractionEdges(board, sourcePostId) : [];
   const pool = [];
   for (const c of candidates) {
     if (excludeAddrs.includes(c.address.toLowerCase())) continue;
+    if (proposer && assess(edges, c.address, proposer).flag) {
+      console.log(`[case ${caseId}] 이해상충으로 제외: ${c.address}`);
+      continue;
+    }
     const tier = Number(await badge.tierOf(c.address));
     if (tier >= REVIEWER_MIN_TIER) pool.push({ ...c, tier });
   }
@@ -160,7 +168,7 @@ async function recruitReviewers(profiledMembers) {
     try {
       await inviteTopReviewers(id, await caseInfoFor(c), profiledMembers, [
         c.claimant.toLowerCase(), c.chiefEditor.toLowerCase(), c.coEditor.toLowerCase(),
-      ]);
+      ], c.claimant, Number(c.caseType) === 0 ? Number(c.sourcePostId) : 0);
     } catch (e) {
       console.error(`case ${id} 리뷰어 초대 중 오류:`, e.message || e);
     }
