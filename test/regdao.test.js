@@ -99,17 +99,24 @@ describe("RegDAO — manuscript-aligned mechanisms", function () {
         .to.be.revertedWith("ProposalBoard: a substantive reason is required");
     });
 
-    it("pays dP_RE = 2 per passing RE and dP_PRO = 3 only once, independent of direction", async () => {
-      const { badge, board, proposer, e1, e2 } = ctx;
+    it("pays dP_RE = 2 per passing RE and dP_PRO = 3 once, only when the proposal is referred", async () => {
+      const { badge, board, proposer, e1, e2, e3 } = ctx;
       const postId = await post(ctx);
       const p0 = await badge.pointsOf(proposer.address);
       const a0 = await badge.pointsOf(e1.address);
       await endorse(ctx, postId, e1, false); // opposition also counts
       await endorse(ctx, postId, e2, true);
+      expect((await badge.pointsOf(proposer.address)) - p0).to.equal(0); // not yet referred: nothing paid
+      expect((await badge.pointsOf(e1.address)) - a0).to.equal(0);
+      await endorse(ctx, postId, e3, true);  // third valid RE: referred
+      expect((await board.posts(postId)).referred).to.equal(true);
       expect((await badge.pointsOf(proposer.address)) - p0).to.equal(3);
       expect((await badge.pointsOf(e1.address)) - a0).to.equal(2);
-      const p = await board.posts(postId);
-      expect(p.verifiedCount).to.equal(2);
+      const e4 = ctx.e4, b4 = await badge.pointsOf(e4.address);
+      await endorse(ctx, postId, e4, true);  // after referral: paid at once
+      expect((await badge.pointsOf(e4.address)) - b4).to.equal(2);
+      expect((await badge.pointsOf(proposer.address)) - p0).to.equal(3);
+      expect((await board.posts(postId)).verifiedCount).to.equal(4);
     });
 
     it("does not count an RE that fails any checklist item, and allows one appeal", async () => {
@@ -122,6 +129,9 @@ describe("RegDAO — manuscript-aligned mechanisms", function () {
       await board.connect(e1).appealFCC(id);
       await board.recordFCC(id, FULL);
       expect((await board.posts(postId)).verifiedCount).to.equal(1);
+      expect((await badge.pointsOf(e1.address)) - a0).to.equal(0); // paid only on referral
+      await endorse(ctx, postId, ctx.e2, true);
+      await endorse(ctx, postId, ctx.e3, true);
       expect((await badge.pointsOf(e1.address)) - a0).to.equal(2);
       await expect(board.connect(e1).appealFCC(id)).to.be.revertedWith("ProposalBoard: only failed REs can be appealed");
     });
@@ -235,37 +245,38 @@ describe("RegDAO — manuscript-aligned mechanisms", function () {
       expect(burned).to.deep.equal([0n, E(9), E(18), E(30), 0n]);
     });
 
-    it("reproduces Table 8 (g = 5, S = 50, N* = 2) for a two-member coalition", async () => {
-      const { board, badge, rdao, proposer, e1 } = ctx;
-      await board.setReferralParams(1, 0); // one RE suffices, as in Appendix B
-      let cumGain = 0n, cumLoss = 0n, nStar = 0;
-      const rows = [];
-      for (let n = 1; n <= 3; n++) {
-        const pts0 = (await badge.pointsOf(proposer.address)) + (await badge.pointsOf(e1.address));
-        const bal0 = (await rdao.balanceOf(proposer.address)) + (await rdao.balanceOf(e1.address));
+    it("raises the forfeiture per farmed point to 0, 3, 6 and 10 RDAO for a minimal referred coalition", async () => {
+      const { board, badge, rdao, proposer, e1, e2, e3 } = ctx;
+      const team = [proposer, e1, e2, e3]; // proposer + theta_min = 3 supporters
+      const sum = async (f) => { let t = 0n; for (const m of team) t += await f(m.address); return t; };
+      const perPoint = [];
+      for (let n = 1; n <= 5; n++) {
+        const pts0 = await sum((a) => badge.pointsOf(a));
+        const bal0 = await sum((a) => rdao.balanceOf(a));
         const postId = await post(ctx);
-        await endorse(ctx, postId, e1, true);
+        for (const e of [e1, e2, e3]) await endorse(ctx, postId, e, true);
         const caseId = await review(ctx, postId, [false, false, false]);
         await board.settle(postId, caseId);
-        const g = (await badge.pointsOf(proposer.address)) + (await badge.pointsOf(e1.address)) - pts0;
-        const loss = bal0 - ((await rdao.balanceOf(proposer.address)) + (await rdao.balanceOf(e1.address)));
-        cumGain += g;
-        cumLoss += loss / E(1);
-        rows.push([n, Number(g), Number(loss / E(1))]);
-        if (!nStar && cumLoss >= cumGain) nStar = n;
+        const g = (await sum((a) => badge.pointsOf(a))) - pts0;
+        const loss = bal0 - (await sum((a) => rdao.balanceOf(a)));
+        expect(g).to.equal(9n);              // 3 + 3 x 2 points per round
+        perPoint.push(Number(loss / E(1)) / Number(g));
       }
-      expect(rows).to.deep.equal([[1, 5, 0], [2, 5, 15], [3, 5, 30]]);
-      expect(nStar).to.equal(2);
+      expect(perPoint).to.deep.equal([0, 3, 6, 10, 10]);
     });
 
-    it("burns lambda_idle of the proposer's and supporters' deposits when an un-referred proposal expires", async () => {
-      const { board, rdao, proposer, e1, e2 } = ctx;
+    it("burns lambda_idle of the proposer's and supporters' deposits when an un-referred proposal expires, and pays no points", async () => {
+      const { board, badge, rdao, proposer, e1, e2 } = ctx;
+      const pts1 = await badge.pointsOf(e1.address), ptsP = await badge.pointsOf(proposer.address);
       const postId = await post(ctx);
       await endorse(ctx, postId, e1, true);   // FCC-passed supporter: burned
       await endorse(ctx, postId, e2, false);  // opposer: refunded
       await expect(board.expire(postId)).to.be.revertedWith("ProposalBoard: not yet expired");
+      expect(await badge.pointsOf(e1.address)).to.equal(pts1);   // unreferred: no points were paid
+      expect(await badge.pointsOf(proposer.address)).to.equal(ptsP);
       await time.increase(91 * DAY);
       await board.expire(postId);
+      expect(await badge.pointsOf(e1.address)).to.equal(pts1);
       expect(await rdao.balanceOf(proposer.address)).to.equal(E(1000) - (S_PRO * 2000n) / 10000n);
       expect(await rdao.balanceOf(e1.address)).to.equal(E(1000) - (S_RE * 2000n) / 10000n);
       expect(await rdao.balanceOf(e2.address)).to.equal(E(1000));

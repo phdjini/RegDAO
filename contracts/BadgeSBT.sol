@@ -51,13 +51,8 @@ contract BadgeSBT is ERC721, AccessControl {
     uint256[6] public tierThresholds = [0, 100, 300, 600, 1200, 2500];
 
     // 동료 지지(레거시 직접 경로, 게시판과 별개로 여전히 지원): 대상당 지지자 1인 1회, 영구 기록
-    mapping(address => mapping(address => bool)) public hasEndorsed;
-    mapping(address => uint64) public lastEndorseAt;
-    uint64 public endorseCooldown = 1 hours;
-    uint256 public endorsePoints = 15; // 지지 1건당 지급 포인트
 
     event BadgeMinted(address indexed member, uint256 indexed tokenId);
-    event Endorsed(address indexed target, address indexed endorser);
     event PointsChanged(address indexed member, int256 delta, uint256 newPoints, string reason);
     event TierChanged(address indexed member, uint8 oldTier, uint8 newTier);
     event Slashed(address indexed member, uint8 oldTier, uint8 newTier, string reason);
@@ -100,20 +95,9 @@ contract BadgeSBT is ERC721, AccessControl {
     // 동료 지지 (레거시 직접 경로)
     // ---------------------------------------------------------------
 
-    function endorse(address target) external {
-        require(badges[msg.sender].exists, "endorser has no badge");
-        require(badges[target].exists, "target has no badge");
-        require(msg.sender != target, "cannot self-endorse");
-        require(tierOf(msg.sender) >= 1, "endorser must be Member+ (Bronze min)");
-        require(block.timestamp >= lastEndorseAt[msg.sender] + endorseCooldown, "endorse cooldown active");
-        require(!hasEndorsed[target][msg.sender], "already endorsed this member");
-
-        hasEndorsed[target][msg.sender] = true;
-        lastEndorseAt[msg.sender] = uint64(block.timestamp);
-        emit Endorsed(target, msg.sender);
-
-        _addPoints(target, int256(endorsePoints), "peer endorsement");
-    }
+    // The direct member-to-member endorsement path has been removed: it let a group of members award one
+    // another points without any proposal, deposit or review. Points now come only from ProposalBoard and
+    // PeerReview (POINTS_ROLE) or from a governance vote (levelUpByGovernance).
 
     // ---------------------------------------------------------------
     // 포인트 가감 (거버넌스 / 정책제안 게시판 전용)
@@ -225,14 +209,6 @@ contract BadgeSBT is ERC721, AccessControl {
     // ---------------------------------------------------------------
     // 관리 함수
     // ---------------------------------------------------------------
-
-    function setEndorseCooldown(uint64 seconds_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        endorseCooldown = seconds_;
-    }
-
-    function setEndorsePoints(uint256 pts) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        endorsePoints = pts;
-    }
 
     function setTierThreshold(uint8 tier, uint256 threshold) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(tier <= MAX_TIER, "invalid tier");
