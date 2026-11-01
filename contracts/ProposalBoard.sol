@@ -35,8 +35,11 @@ interface IPeerReviewOutcome {
  *  2) Formality compliance check (FCC): an off-chain checker (FCC_AGENT) evaluates checklist items C1..C6
  *     and records the result as a 6-bit mask. score(e) = popcount(mask); FCC(e) = 1 iff score >= tauFCC (= 6).
  *     The direction of the RE never enters the check. The mask is stored on-chain for post-hoc audit.
- *  3) Pre-verification points: each passing RE pays dP_RE to the endorser and, on the first passing RE only,
- *     dP_PRO to the proposer. Points are never reclaimed.
+ *  3) Points on referral: a passing RE earns dP_RE for its author and the proposal earns dP_PRO for its proposer
+ *     (once), but only when the proposal is referred to peer review. REs that pass before referral are paid at
+ *     the moment of referral; REs that pass afterwards are paid at once. A proposal that expires unreferred
+ *     yields no points, so points cannot be farmed by keeping proposals below the referral threshold.
+ *     Points are kept whatever the verdict, except the clawback of opposing REs in 6).
  *  4) Referral: once N_RE(p) >= theta_PR = max(theta_min, ceil(rho * |M|)), the proposal is marked referred and
  *     PeerReview may open a case for it.
  *  5) Mandatory pre-staking: S_PRO at proposal submission, S_RE per RE.
@@ -281,22 +284,39 @@ contract ProposalBoard {
         else p.opposeCount += 1;
         p.verifiedCount += 1;
 
-        awardedPoints[endorsementId] = pointsEndorser;
-        badge.addPoints(e.endorser, int256(pointsEndorser), "FCC-verified reasoned endorsement");
-        emit PreVerificationPoints(e.postId, e.endorser, pointsEndorser, false);
+        if (p.referred) {
+            _awardEndorser(e.postId, endorsementId);        // proposal already under review: pay at once
+            return;
+        }
+        uint256 threshold = referralThreshold();
+        if (p.verifiedCount >= threshold) {
+            p.referred = true;
+            emit ReferredToPeerReview(e.postId, p.verifiedCount, threshold);
+            _awardOnReferral(e.postId);                     // pay the proposer and every RE that has passed so far
+        }
+    }
+
+    /// @dev Points are paid only once a proposal is referred, so unreferred (expiring) proposals yield none.
+    function _awardOnReferral(uint256 postId) internal {
+        Post storage p = posts[postId];
         if (!p.proposerAwarded) {
             p.proposerAwarded = true;
-            badge.addPoints(p.author, int256(pointsProposer), "proposal received first verified endorsement");
-            emit PreVerificationPoints(e.postId, p.author, pointsProposer, true);
+            badge.addPoints(p.author, int256(pointsProposer), "proposal referred to peer review");
+            emit PreVerificationPoints(postId, p.author, pointsProposer, true);
         }
+        uint256[] storage ids = _postEndorsements[postId];
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (endorsements[ids[i]].fcc == FCCStatus.PASSED) _awardEndorser(postId, ids[i]);
+        }
+    }
 
-        if (!p.referred) {
-            uint256 threshold = referralThreshold();
-            if (p.verifiedCount >= threshold) {
-                p.referred = true;
-                emit ReferredToPeerReview(e.postId, p.verifiedCount, threshold);
-            }
-        }
+    function _awardEndorser(uint256 postId, uint256 endorsementId) internal {
+        if (awardedPoints[endorsementId] > 0) return;
+        Endorsement storage e = endorsements[endorsementId];
+        if (!badge.isMember(e.endorser)) return;
+        awardedPoints[endorsementId] = pointsEndorser;
+        badge.addPoints(e.endorser, int256(pointsEndorser), "FCC-verified reasoned endorsement on a referred proposal");
+        emit PreVerificationPoints(postId, e.endorser, pointsEndorser, false);
     }
 
     /// @notice An endorser whose RE failed FCC may request one re-adjudication.

@@ -7,7 +7,7 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "gas": "hardhat run scripts/gas-report.js",
-    "simulate": "python3 simulations/deterrence_threshold.py && python3 simulations/panel_dominance.py",
+    "simulate": "python3 simulations/farming_cost.py && python3 simulations/panel_dominance.py",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia"
   },
   "keywords": [],

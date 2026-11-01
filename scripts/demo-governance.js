@@ -1,8 +1,7 @@
 // scripts/demo-governance.js
 //
 // 목적: bootstrap.js로 만든 멤버들을 이용해
-//   1) newbie1에 대해 founder 3명이 지지(endorse) -> 자동 레벨업 확인
-//   2) newbie2를 "어뷰저"로 가정하고 슬래싱 제안 생성 + 투표
+//   newbie2를 "어뷰저"로 가정하고 슬래싱 제안 생성 + 투표
 // 까지 실행한다. 투표 종료(실제 3일 대기) 후 집행은 execute-proposal.js에서 별도 진행.
 //
 // 사용법:
@@ -35,27 +34,12 @@ async function main() {
   const founder1 = signerOf("founder1");
   const founder2 = signerOf("founder2");
   const founder3 = signerOf("founder3");
-  const newbie1 = members.newbie1.address;
   const newbie2 = members.newbie2.address;
 
   // ---------------------------------------------------------
-  // 1) 지지 -> 자동 레벨업
+  // 슬래싱 제안 생성 + 투표
   // ---------------------------------------------------------
-  console.log("=== 1) 지지 기반 레벨업 테스트 (newbie1) ===");
-  console.log("레벨업 전:", await badge.levelOf(newbie1));
-
-  for (const [i, founder] of [founder1, founder2, founder3].entries()) {
-    const tx = await badge.connect(founder).endorse(newbie1);
-    await tx.wait();
-    console.log(`  founder${i + 1}이 newbie1을 지지함`);
-  }
-
-  console.log("레벨업 후:", await badge.levelOf(newbie1));
-
-  // ---------------------------------------------------------
-  // 2) 슬래싱 제안 생성 + 투표
-  // ---------------------------------------------------------
-  console.log("\n=== 2) 슬래싱 제안: newbie2를 어뷰저로 가정 ===");
+  console.log("=== 슬래싱 제안: newbie2를 어뷰저로 가정 ===");
 
   const proposeTx = await governance
     .connect(founder1)
