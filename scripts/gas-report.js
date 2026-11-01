@@ -74,9 +74,9 @@ async function lifecycle(approve) {
     ePos.push(await gasOf(board.connect(endorsers[i]).endorsePost(1, true, REASON)));
   }
   g["ProposalBoard.endorsePost (incl. S_RE transfer)"] = ePos[0];
-  g["ProposalBoard.recordFCC — first pass (pays dP_RE and dP_PRO)"] = await gasOf(board.recordFCC(1, FULL));
-  g["ProposalBoard.recordFCC — later pass (dP_RE only)"] = await gasOf(board.recordFCC(2, FULL));
-  g["ProposalBoard.recordFCC — pass that triggers referral"] = await gasOf(board.recordFCC(3, FULL));
+  g["ProposalBoard.recordFCC — first pass (counted; points deferred)"] = await gasOf(board.recordFCC(1, FULL));
+  g["ProposalBoard.recordFCC — later pass before referral"] = await gasOf(board.recordFCC(2, FULL));
+  g["ProposalBoard.recordFCC — pass that triggers referral (pays dP_PRO and all dP_RE)"] = await gasOf(board.recordFCC(3, FULL));
 
   g["PeerReview.initiateCase"] = await gasOf(pr.initiateCase(0, 1, proposer.address, ""));
   g["PeerReview.assignEditors"] = await gasOf(pr.assignEditors(1, ed1.address, ed2.address));
