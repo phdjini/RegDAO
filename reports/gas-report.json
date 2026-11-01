@@ -1,25 +1,25 @@
 {
   "deployment": {
-    "BadgeSBT": 2608895,
+    "BadgeSBT": 2315229,
     "RDAOToken": 973118,
-    "ProposalBoard": 4328628,
+    "ProposalBoard": 4398588,
     "PeerReview": 3778131
   },
   "lifecycle": {
-    "ProposalBoard.createPost (incl. S_PRO transfer)": 267701,
-    "ProposalBoard.endorsePost (incl. S_RE transfer)": 390468,
-    "ProposalBoard.recordFCC — first pass (pays dP_RE and dP_PRO)": 194161,
-    "ProposalBoard.recordFCC — later pass (dP_RE only)": 134771,
-    "ProposalBoard.recordFCC — pass that triggers referral": 139494,
-    "PeerReview.initiateCase": 183028,
-    "PeerReview.assignEditors": 81836,
+    "ProposalBoard.createPost (incl. S_PRO transfer)": 267459,
+    "ProposalBoard.endorsePost (incl. S_RE transfer)": 390226,
+    "ProposalBoard.recordFCC — first pass (counted; points deferred)": 114372,
+    "ProposalBoard.recordFCC — later pass before referral": 80172,
+    "ProposalBoard.recordFCC — pass that triggers referral (pays dP_PRO and all dP_RE)": 266040,
+    "PeerReview.initiateCase": 182918,
+    "PeerReview.assignEditors": 81352,
     "PeerReview.acceptEditorship (incl. S_PPR transfer)": 110407,
-    "PeerReview.inviteReviewer": 102747,
+    "PeerReview.inviteReviewer": 102505,
     "PeerReview.acceptInvite (incl. S_PPR transfer)": 122475,
     "PeerReview.submitReview": 105677,
-    "PeerReview.submitReview — final (verdict + panel payout)": 320400,
+    "PeerReview.submitReview — final (verdict + panel payout)": 318950,
     "ProposalBoard.settle — approved, 3 REs": 153239,
-    "PeerReview.publishFinalProposal": 159893,
+    "PeerReview.publishFinalProposal": 159603,
     "ProposalBoard.settle — rejected, 3 REs": 319668
   },
   "settleScaling": [
