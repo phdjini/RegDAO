@@ -13,15 +13,15 @@ incentives come from a separate transferable utility token, so that authority ca
 
 | Manuscript | Mechanism | Implementation |
 |---|---|---|
-| IV-B, Table 1 | Six-tier soulbound reputation badge (0/100/300/600/1200/2500 points) | `BadgeSBT.sol` |
+| IV-B, Table 2 | Six-tier soulbound reputation badge (ERC-721 + ERC-5192; 0/100/300/600/1200/2500 points) | `BadgeSBT.sol` |
 | IV-C, Eq. (1)–(3), Table 6 | Reasoned endorsement (RE), one per member per proposal; formality compliance check C1–C6, pass iff all six | `ProposalBoard.endorsePost`, `ProposalBoard.recordFCC`; checklist in `agent-service/src/fcc.js` |
 | IV-C, Eq. (4) | Referral threshold θ_PR = max(θ_min, ⌈ρ·\|M\|⌉) | `ProposalBoard.referralThreshold` |
-| IV-D1, Table 2 | Points on referral: ΔP_RE = 2 per passing RE and ΔP_PRO = 3 once per proposal, paid only when the proposal is referred to peer review | `ProposalBoard.recordFCC`, `_awardOnReferral` |
+| IV-D1, Table 2 | Points on referral: ΔP_RE = 2 per passing supporting RE and ΔP_PRO = 3 once per proposal, paid only when the proposal is referred to peer review | `ProposalBoard.recordFCC`, `_awardOnReferral` |
 | IV-D, Eq. (5) | Two-thirds approval rule | `PeerReview.submitReview` |
 | IV-D2, Table 3 | Lead and associate editors Council+, reviewers Member-Gold+, claimant excluded | `PeerReview.assignEditors`, `PeerReview.inviteReviewer` |
 | IV-E1, Table 5 | Mandatory pre-staking: S_PRO, S_RE, S_PPR | `ProposalBoard.createPost`, `endorsePost`; `PeerReview.acceptEditorship`, `acceptInvite` |
 | V-B, App. A, Eq. (6)–(12) | Progressive slashing λ(n) over a trailing 90-day window; supporters slashed, opposers' deposits exempt | `ProposalBoard.settle`, `burnRateBps`, `setBurnSchedule` |
-| IV-D1, Table 2, App. C-3 | Opposers' ΔP_RE clawed back on rejection; exemption revoked for opposers densely tied to the proposer | `ProposalBoard.settle`, `revokeExemption`; graph check in `agent-service/src/graph.js` |
+| IV-D1, Table 3 | Opposing endorsements are recorded but do not count towards referral and earn no points or RDAO; their deposit is always refunded | `ProposalBoard.recordFCC`, `ProposalBoard.settle` |
 | V-D | Non-referral sunset: λ_idle of proposer and supporter deposits burned at T_TTL | `ProposalBoard.expire` |
 | V-E | Random reviewer draw; stratified domain + cross-domain panel when the pool is below N_min | `agent-service/src/panel.js` |
 | App. A-3 | Panel immunity: deposit, points and RDAO regardless of verdict; partial burn only for a no-show | `PeerReview._payPanel`, `PeerReview.markNoShow` |
@@ -43,7 +43,7 @@ incentives come from a separate transferable utility token, so that authority ca
 | Public settlement delay | 1 day after the verdict (agent may settle at once) | `setSettleDelay` |
 | Review quorum, review period | 3 reviewers, 14 days | `PeerReview.setReviewerQuorum`, `setReviewPeriod` |
 | No-show burn | 50 % of S_PPR | `PeerReview.setNoShowBurnBps` |
-| Approval rewards | proposer 20, endorser 5, lead editor 30, associate editor 15, reviewer 20 RDAO | `setRewards`, `PeerReview.set*RdaoReward` |
+| Approval rewards | proposer 20, supporting endorser 5, lead editor 30, associate editor 15, reviewer 20 RDAO | `setRewards`, `PeerReview.set*RdaoReward` |
 
 ## Lifecycle
 
@@ -51,15 +51,16 @@ incentives come from a separate transferable utility token, so that authority ca
 2. Bronze+ members submit reasoned support or opposition and stake S_RE (`endorsePost`).
 3. The agent service evaluates C1–C6 and records the 6-bit result on-chain (`recordFCC`). Passing REs are counted; a failed RE
    can be appealed once.
-4. When the number of passing REs reaches θ_PR the proposal is marked *referred*: the proposer earns ΔP_PRO and every
-   passing RE earns ΔP_RE (REs that pass later are paid at once). Unreferred proposals that expire earn no points.
+4. When the number of passing supporting REs reaches θ_PR the proposal is marked *referred*: the proposer earns ΔP_PRO
+   and every passing supporting RE earns ΔP_RE (later ones are paid at once). Opposing REs are recorded for the panel
+   but are not counted and earn nothing. Unreferred proposals that expire earn no points.
    The agent then opens a peer-review case.
 5. Two Council+ editors accept and stake; Gold+ reviewers are invited, accept and stake.
 6. Reviewers submit verdicts. The panel is paid as soon as all reviews are in, whatever the verdict.
-7. Before settling a rejection, the agent revokes the exemption of any opposing endorser densely tied to the proposer in
-   the interaction graph. The agent then settles (anyone may, one day after the verdict): on approval every deposit is
-   returned with RDAO; on rejection the proposer, supporting endorsers and revoked opposers lose λ(n) of their deposit,
-   other opposers are refunded but lose their ΔP_RE, and REs that failed FCC are refunded.
+7. The agent settles (anyone may, one day after the verdict). On approval every deposit is returned, with RDAO for the
+   proposer and supporting endorsers; on rejection the proposer and supporting endorsers lose λ(n) of their deposit,
+   where n counts only their rejections within the trailing window. Opposing endorsers and REs that failed FCC are
+   refunded in full under either verdict and earn nothing.
 8. A proposal that never reaches θ_PR expires after T_TTL (`expire`): the proposer and FCC-passed supporters lose
    λ_idle of their deposits; everyone else is refunded.
 

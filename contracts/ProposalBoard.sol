@@ -35,26 +35,27 @@ interface IPeerReviewOutcome {
  *  2) Formality compliance check (FCC): an off-chain checker (FCC_AGENT) evaluates checklist items C1..C6
  *     and records the result as a 6-bit mask. score(e) = popcount(mask); FCC(e) = 1 iff score >= tauFCC (= 6).
  *     The direction of the RE never enters the check. The mask is stored on-chain for post-hoc audit.
- *  3) Points on referral: a passing RE earns dP_RE for its author and the proposal earns dP_PRO for its proposer
- *     (once), but only when the proposal is referred to peer review. REs that pass before referral are paid at
- *     the moment of referral; REs that pass afterwards are paid at once. A proposal that expires unreferred
- *     yields no points, so points cannot be farmed by keeping proposals below the referral threshold.
- *     Points are kept whatever the verdict, except the clawback of opposing REs in 6).
- *  4) Referral: once N_RE(p) >= theta_PR = max(theta_min, ceil(rho * |M|)), the proposal is marked referred and
- *     PeerReview may open a case for it.
+ *  3) Points on referral: a passing supporting RE earns dP_RE for its author and the proposal earns dP_PRO for
+ *     its proposer (once), but only when the proposal is referred to peer review. Supporting REs that pass before
+ *     referral are paid at the moment of referral; those that pass afterwards are paid at once. A proposal that
+ *     expires unreferred yields no points. Opposing REs earn no points and no RDAO under any outcome: their
+ *     deposit is always refunded, so rewarding them would let members collect points at no risk.
+ *     Points, once paid, are kept whatever the verdict.
+ *  4) Referral: once the number of passing supporting REs reaches theta_PR = max(theta_min, ceil(rho * |M|)),
+ *     the proposal is marked referred and PeerReview may open a case for it. Opposing REs are recorded and
+ *     visible to the panel but do not count towards referral.
  *  5) Mandatory pre-staking: S_PRO at proposal submission, S_RE per RE.
  *  6) Settlement on the peer-review verdict:
- *       approved  -> every participant gets the full deposit back plus an RDAO reward;
- *       rejected  -> proposer and supporting endorsers are slashed by lambda(n), where n is their cumulative
- *                    rejection count within the trailing window (default 90 days); endorsers who opposed
- *                    beforehand are refunded in full, but their dP_RE is clawed back so that opposing stakes
- *                    cannot serve a coalition as a zero-risk hedge. An opposing RE whose author the agent has
- *                    flagged for dense prior interaction with the proposer loses the exemption and is slashed.
+ *       approved  -> the proposer and supporting endorsers get the full deposit back plus an RDAO reward;
+ *                    opposing endorsers get the deposit back without reward;
+ *       rejected  -> proposer and supporting endorsers are slashed by lambda(n), where n is their rejection
+ *                    count within the trailing window (default 90 days); rejections older than the window no
+ *                    longer count. Opposing endorsers get the deposit back in full.
  *     REs that did not pass FCC are refunded in full and earn nothing.
  *  7) Non-referral sunset: a proposal that does not reach theta_PR within T_TTL expires; the proposer and the
  *     FCC-passed supporting endorsers lose lambda_idle of their deposits, everyone else is refunded.
  *  8) Settlement window: after a verdict the agent may settle at once; anyone else may settle after
- *     settleDelay, which leaves the agent time to record exemption revocations.
+ *     settleDelay.
  */
 contract ProposalBoard {
     enum Category { REGULATION, INDUSTRY_PAIN_POINT, SPEAKER_INVITATION, MEDIA_CONTRIBUTION, OTHER }
@@ -74,7 +75,7 @@ contract ProposalBoard {
         uint256 verifiedCount;  // N_RE(p) = supportCount + opposeCount
         uint256 stake;          // S_PRO held for this proposal
         bool proposerAwarded;   // dP_PRO already paid (once per proposal)
-        bool referred;          // N_RE(p) reached theta_PR
+        bool referred;          // passing supporting REs reached theta_PR
         Outcome outcome;
         bool exists;
     }
@@ -120,7 +121,7 @@ contract ProposalBoard {
     uint256 public stakeProposer = 30 ether;        // S_PRO (RDAO, 18 decimals)
     uint256 public stakeEndorser = 20 ether;        // S_RE
     uint256 public rewardProposer = 20 ether;       // RDAO reward on approval
-    uint256 public rewardEndorser = 5 ether;        // RDAO reward on approval (per FCC-passed RE)
+    uint256 public rewardEndorser = 5 ether;        // RDAO reward on approval (per FCC-passed supporting RE)
     uint16[] public burnScheduleBps;                // lambda(1), lambda(2), ...; last value repeats
     uint64 public rejectionWindow = 90 days;
     uint64 public postExpiry = 90 days;             // T_TTL: un-referred proposals expire after this
@@ -139,8 +140,7 @@ contract ProposalBoard {
     mapping(uint256 => uint256[]) private _postEndorsements;
     mapping(uint256 => mapping(address => bool)) public hasEndorsed;
     mapping(address => uint64[]) private _rejections; // timestamps of rejections that triggered slashing review
-    mapping(uint256 => uint256) public awardedPoints;      // dP_RE actually paid for an RE (for clawback)
-    mapping(uint256 => bool) public exemptionRevoked;      // opposing RE flagged for dense interaction with the proposer
+    mapping(uint256 => uint256) public awardedPoints;      // dP_RE actually paid for a supporting RE
 
     event PostCreated(uint256 indexed id, address indexed author, Category category, string title, uint256 stake);
     event CommentCreated(uint256 indexed id, uint256 indexed postId, address indexed author);
@@ -148,11 +148,9 @@ contract ProposalBoard {
     event FCCRecorded(uint256 indexed endorsementId, uint8 mask, uint8 score, bool passed);
     event FCCAppealed(uint256 indexed endorsementId);
     event PreVerificationPoints(uint256 indexed postId, address indexed member, uint256 points, bool proposer);
-    event ReferredToPeerReview(uint256 indexed postId, uint256 verifiedCount, uint256 threshold);
+    event ReferredToPeerReview(uint256 indexed postId, uint256 supportCount, uint256 threshold);
     event Settled(uint256 indexed postId, uint256 indexed caseId, Outcome outcome);
     event StakeResolved(uint256 indexed postId, address indexed member, uint256 refunded, uint256 burned, uint256 reward, uint256 rejectionCount);
-    event PointsClawedBack(uint256 indexed endorsementId, address indexed member, uint256 points);
-    event ExemptionRevoked(uint256 indexed endorsementId, string evidence);
 
     modifier onlyMember() {
         require(badge.isMember(msg.sender), "ProposalBoard: badge holders only");
@@ -284,14 +282,15 @@ contract ProposalBoard {
         else p.opposeCount += 1;
         p.verifiedCount += 1;
 
+        if (!e.isSupport) return;                           // opposition: recorded, never rewarded, not counted
         if (p.referred) {
             _awardEndorser(e.postId, endorsementId);        // proposal already under review: pay at once
             return;
         }
         uint256 threshold = referralThreshold();
-        if (p.verifiedCount >= threshold) {
+        if (p.supportCount >= threshold) {
             p.referred = true;
-            emit ReferredToPeerReview(e.postId, p.verifiedCount, threshold);
+            emit ReferredToPeerReview(e.postId, p.supportCount, threshold);
             _awardOnReferral(e.postId);                     // pay the proposer and every RE that has passed so far
         }
     }
@@ -306,7 +305,8 @@ contract ProposalBoard {
         }
         uint256[] storage ids = _postEndorsements[postId];
         for (uint256 i = 0; i < ids.length; i++) {
-            if (endorsements[ids[i]].fcc == FCCStatus.PASSED) _awardEndorser(postId, ids[i]);
+            Endorsement storage e = endorsements[ids[i]];
+            if (e.fcc == FCCStatus.PASSED && e.isSupport) _awardEndorser(postId, ids[i]);
         }
     }
 
@@ -329,16 +329,6 @@ contract ProposalBoard {
         e.appealed = true;
         e.fcc = FCCStatus.PENDING;
         emit FCCAppealed(endorsementId);
-    }
-
-    /// @notice The agent flags an opposing RE whose author interacts densely with the proposer (interaction-graph
-    ///         check, Section IV-D1). A flagged RE loses the slashing exemption if the proposal is rejected.
-    function revokeExemption(uint256 endorsementId, string calldata evidence) external onlyFccAgent {
-        Endorsement storage e = endorsements[endorsementId];
-        require(e.exists && !e.isSupport, "ProposalBoard: only opposing REs carry an exemption");
-        require(posts[e.postId].outcome == Outcome.OPEN, "ProposalBoard: proposal already closed");
-        exemptionRevoked[endorsementId] = true;
-        emit ExemptionRevoked(endorsementId, evidence);
     }
 
     /// @notice theta_PR = max(theta_min, ceil(rho * |M|)).
@@ -378,18 +368,12 @@ contract ProposalBoard {
             Endorsement storage e = endorsements[ids[i]];
             if (e.fcc != FCCStatus.PASSED) {
                 _resolve(postId, e.endorser, e.stake, 0, 0, 0);            // unverified: refund only
+            } else if (!e.isSupport) {
+                _resolve(postId, e.endorser, e.stake, 0, 0, 0);            // opposition: refund only, either way
             } else if (adopted) {
                 _resolve(postId, e.endorser, e.stake, 0, rewardEndorser, 0);
-            } else if (e.isSupport || exemptionRevoked[ids[i]]) {
-                _slash(postId, e.endorser, e.stake);                        // advocated the rejected position
             } else {
-                _resolve(postId, e.endorser, e.stake, 0, 0, 0);            // opposed beforehand: deposit exempt
-            }
-            if (!adopted && !e.isSupport && awardedPoints[ids[i]] > 0 && badge.isMember(e.endorser)) {
-                uint256 pts = awardedPoints[ids[i]];                        // no zero-risk hedge: dP_RE clawed back
-                awardedPoints[ids[i]] = 0;
-                badge.addPoints(e.endorser, -int256(pts), "opposing RE on a rejected proposal: dP_RE clawed back");
-                emit PointsClawedBack(ids[i], e.endorser, pts);
+                _slash(postId, e.endorser, e.stake);                        // supported the rejected proposal
             }
         }
         emit Settled(postId, caseId, p.outcome);

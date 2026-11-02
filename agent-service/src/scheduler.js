@@ -93,24 +93,6 @@ async function markNoShows() {
   }
 }
 
-/** 부결된 안건에서, 제안자와 상호작용이 조밀한 반대 RE의 면제를 정산 전에 철회한다. */
-async function revokeDenseOpposers(postId) {
-  const post = await board.posts(postId);
-  const edges = await loadInteractionEdges(board, postId);
-  for (const id of await board.endorsementsOf(postId)) {
-    const e = await board.endorsements(id);
-    if (e.isSupport || Number(e.fcc) !== 1 || (await board.exemptionRevoked(id))) continue;
-    const r = assess(edges, e.endorser, post.author, {
-      minWeight: Number(process.env.EXEMPTION_MIN_WEIGHT || 3),
-      minOverlap: Number(process.env.EXEMPTION_MIN_OVERLAP || 0.5),
-    });
-    if (!r.flag) continue;
-    const evidence = `weight=${r.weight}, jaccard=${r.jaccard.toFixed(2)} over ${r.union} neighbours`;
-    console.log(`[post ${postId}] 반대 RE #${id} 면제 철회: ${evidence}`);
-    await (await board.revokeExemption(id, evidence)).wait();
-  }
-}
-
 /** 판정이 난 정책제안 케이스의 예치금을 정산한다 (누구나 호출 가능한 settle을 에이전트가 대신 호출). */
 async function settleDecided() {
   const caseCount = Number(await peerReview.caseCount());
@@ -120,7 +102,6 @@ async function settleDecided() {
     if (Number(c.caseType) !== 0 || ![3, 4, 5].includes(status)) continue;
     const post = await board.posts(c.sourcePostId);
     if (Number(post.outcome) !== 0 /* OPEN */) continue;
-    if (status === 4 /* AGENDA_PENDING: rejected */) await revokeDenseOpposers(c.sourcePostId);
     console.log(`[case ${caseId}] 안건 #${c.sourcePostId} 예치금 정산`);
     await (await board.settle(c.sourcePostId, caseId)).wait();
   }
