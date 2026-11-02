@@ -4,6 +4,13 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+/// @dev ERC-5192 (Minimal Soulbound NFTs). interfaceId = 0xb45a3c0e.
+interface IERC5192 {
+    event Locked(uint256 tokenId);
+    event Unlocked(uint256 tokenId);
+    function locked(uint256 tokenId) external view returns (bool);
+}
+
 interface IBadgeRenderer {
     function tokenURI(uint256 tokenId, uint8 tier, uint256 points) external view returns (string memory);
 }
@@ -24,10 +31,13 @@ interface IBadgeRenderer {
  *         Tier 4: Council(협의회)
  *         Tier 5: Elder(원로)
  *
+ *         ERC-721 토큰이며 ERC-5192(Minimal Soulbound NFTs)를 구현한다: 모든 배지는 발행 시점부터
+ *         잠금(locked) 상태이고 전송은 되돌려진다(revert).
+ *
  *         어뷰징이 확인되면 거버넌스(GOVERNANCE_ROLE)가 투표 결과에 따라
  *         포인트를 강등(슬래싱)시키거나 배지를 완전히 소각할 수 있다.
  */
-contract BadgeSBT is ERC721, AccessControl {
+contract BadgeSBT is ERC721, AccessControl, IERC5192 {
     bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
     bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE"); // 슬래싱·성과인증 (DAOGovernance)
     bytes32 public constant POINTS_ROLE = keccak256("POINTS_ROLE");         // 포인트 가감 (ProposalBoard 등)
@@ -88,6 +98,7 @@ contract BadgeSBT is ERC721, AccessControl {
         ownerOfBadge[tokenId] = member;
         memberCount += 1;
         _safeMint(member, tokenId);
+        emit Locked(tokenId);
         emit BadgeMinted(member, tokenId);
     }
 
@@ -244,7 +255,13 @@ contract BadgeSBT is ERC721, AccessControl {
         return super._update(to, tokenId, auth);
     }
 
+    /// @notice ERC-5192: every badge is permanently locked (soulbound).
+    function locked(uint256 tokenId) external view returns (bool) {
+        _requireOwned(tokenId);
+        return true;
+    }
+
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return interfaceId == type(IERC5192).interfaceId || super.supportsInterface(interfaceId);
     }
 }

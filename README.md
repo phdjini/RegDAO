@@ -13,7 +13,7 @@ incentives come from a separate transferable utility token, so that authority ca
 
 | Manuscript | Mechanism | Implementation |
 |---|---|---|
-| IV-B, Table 1 | Six-tier soulbound reputation badge (0/100/300/600/1200/2500 points) | `BadgeSBT.sol` |
+| IV-B, Table 2 | Six-tier soulbound reputation badge (ERC-721 + ERC-5192; 0/100/300/600/1200/2500 points) | `BadgeSBT.sol` |
 | IV-C, Eq. (1)–(3), Table 6 | Reasoned endorsement (RE), one per member per proposal; formality compliance check C1–C6, pass iff all six | `ProposalBoard.endorsePost`, `ProposalBoard.recordFCC`; checklist in `agent-service/src/fcc.js` |
 | IV-C, Eq. (4) | Referral threshold θ_PR = max(θ_min, ⌈ρ·\|M\|⌉) | `ProposalBoard.referralThreshold` |
 | IV-D1, Table 2 | Points on referral: ΔP_RE = 2 per passing supporting RE and ΔP_PRO = 3 once per proposal, paid only when the proposal is referred to peer review | `ProposalBoard.recordFCC`, `_awardOnReferral` |

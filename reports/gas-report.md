@@ -6,7 +6,7 @@ Measured on the local Hardhat network (EVM cancun), solc 0.8.36, optimizer 200 r
 
 | Contract | Gas |
 |---|---:|
-| BadgeSBT | 2,315,229 |
+| BadgeSBT | 2,341,162 |
 | RDAOToken | 973,118 |
 | ProposalBoard | 4,178,539 |
 | PeerReview | 3,778,131 |
@@ -15,15 +15,15 @@ Measured on the local Hardhat network (EVM cancun), solc 0.8.36, optimizer 200 r
 
 | Step | Gas |
 |---|---:|
-| ProposalBoard.createPost (incl. S_PRO transfer) | 267,417 |
-| ProposalBoard.endorsePost (incl. S_RE transfer) | 390,205 |
+| ProposalBoard.createPost (incl. S_PRO transfer) | 267,439 |
+| ProposalBoard.endorsePost (incl. S_RE transfer) | 390,227 |
 | ProposalBoard.recordFCC — first pass (counted; points deferred) | 114,488 |
 | ProposalBoard.recordFCC — later pass before referral | 80,288 |
 | ProposalBoard.recordFCC — pass that triggers referral (pays dP_PRO and all dP_RE) | 266,651 |
 | PeerReview.initiateCase | 182,896 |
-| PeerReview.assignEditors | 81,352 |
+| PeerReview.assignEditors | 81,396 |
 | PeerReview.acceptEditorship (incl. S_PPR transfer) | 110,407 |
-| PeerReview.inviteReviewer | 102,505 |
+| PeerReview.inviteReviewer | 102,527 |
 | PeerReview.acceptInvite (incl. S_PPR transfer) | 122,475 |
 | PeerReview.submitReview | 105,677 |
 | PeerReview.submitReview — final (verdict + panel payout) | 318,950 |

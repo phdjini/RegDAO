@@ -80,6 +80,14 @@ describe("RegDAO — manuscript-aligned mechanisms", function () {
   beforeEach(async () => { ctx = await deploy(); });
 
   describe("Soulbound badge", function () {
+    it("implements ERC-5192: every badge is locked and the interface is advertised", async () => {
+      const { badge, proposer } = ctx;
+      const tokenId = await badge.tokenIdOf(proposer.address);
+      expect(await badge.locked(tokenId)).to.equal(true);
+      expect(await badge.supportsInterface("0xb45a3c0e")).to.equal(true); // ERC-5192
+      expect(await badge.supportsInterface("0x80ac58cd")).to.equal(true); // ERC-721
+    });
+
     it("is non-transferable and tracks |M|", async () => {
       const { badge, proposer, e1 } = ctx;
       expect(await badge.memberCount()).to.equal(13);
