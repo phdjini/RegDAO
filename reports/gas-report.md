@@ -9,7 +9,7 @@ Measured on the local Hardhat network (EVM cancun), solc 0.8.36, optimizer 200 r
 | BadgeSBT | 2,341,162 |
 | RDAOToken | 973,118 |
 | ProposalBoard | 4,178,539 |
-| PeerReview | 3,778,131 |
+| PeerReview | 3,660,272 |
 
 ## Proposal lifecycle (3 reasoned endorsements, 3 reviewers)
 
@@ -21,14 +21,14 @@ Measured on the local Hardhat network (EVM cancun), solc 0.8.36, optimizer 200 r
 | ProposalBoard.recordFCC — later pass before referral | 80,288 |
 | ProposalBoard.recordFCC — pass that triggers referral (pays dP_PRO and all dP_RE) | 266,651 |
 | PeerReview.initiateCase | 182,896 |
-| PeerReview.assignEditors | 81,396 |
-| PeerReview.acceptEditorship (incl. S_PPR transfer) | 110,407 |
-| PeerReview.inviteReviewer | 102,527 |
+| PeerReview.assignEditors | 81,352 |
+| PeerReview.acceptEditorship (incl. S_PPR transfer) | 110,385 |
+| PeerReview.inviteReviewer | 102,505 |
 | PeerReview.acceptInvite (incl. S_PPR transfer) | 122,475 |
 | PeerReview.submitReview | 105,677 |
 | PeerReview.submitReview — final (verdict + panel payout) | 318,950 |
 | ProposalBoard.settle — approved, 3 REs | 153,431 |
-| PeerReview.publishFinalProposal | 159,603 |
+| PeerReview.publishFinalProposal | 123,995 |
 | ProposalBoard.settle — rejected, 3 REs | 318,687 |
 
 ## Settlement gas vs. number of FCC-passed supporting endorsements

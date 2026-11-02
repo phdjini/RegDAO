@@ -92,7 +92,6 @@ contract PeerReview {
     uint256 public reviewerRdaoReward = 20 ether;
     uint256 public editorRewardPoints = 30;
     uint256 public reviewerRewardPoints = 20;
-    uint256 public publishRewardPoints = 50;       // to the original proposer when the final proposal is published
 
     uint256 public caseCount;
     mapping(uint256 => ReviewCase) public cases;
@@ -376,10 +375,7 @@ contract PeerReview {
         c.finalDocumentURI = documentURI;
         c.finalSummary = summary;
         emit Published(id, title, documentURI);
-
-        if (badge.isMember(c.claimant)) {
-            badge.addPoints(c.claimant, int256(publishRewardPoints), "peer-reviewed policy proposal published");
-        }
+        // No points on publication: the proposer's points are paid once, on referral (ProposalBoard).
     }
 
     /// @notice Cancels an undecided case and returns every outstanding panel deposit without reward.
@@ -441,6 +437,5 @@ contract PeerReview {
     function setReviewerRdaoReward(uint256 v) external onlyAdmin { reviewerRdaoReward = v; }
     function setEditorRewardPoints(uint256 v) external onlyAdmin { editorRewardPoints = v; }
     function setReviewerRewardPoints(uint256 v) external onlyAdmin { reviewerRewardPoints = v; }
-    function setPublishRewardPoints(uint256 v) external onlyAdmin { publishRewardPoints = v; }
     function setAdmin(address a) external onlyAdmin { admin = a; }
 }

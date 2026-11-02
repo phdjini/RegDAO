@@ -3,7 +3,7 @@
     "BadgeSBT": 2341162,
     "RDAOToken": 973118,
     "ProposalBoard": 4178539,
-    "PeerReview": 3778131
+    "PeerReview": 3660272
   },
   "lifecycle": {
     "ProposalBoard.createPost (incl. S_PRO transfer)": 267439,
@@ -12,14 +12,14 @@
     "ProposalBoard.recordFCC — later pass before referral": 80288,
     "ProposalBoard.recordFCC — pass that triggers referral (pays dP_PRO and all dP_RE)": 266651,
     "PeerReview.initiateCase": 182896,
-    "PeerReview.assignEditors": 81396,
-    "PeerReview.acceptEditorship (incl. S_PPR transfer)": 110407,
-    "PeerReview.inviteReviewer": 102527,
+    "PeerReview.assignEditors": 81352,
+    "PeerReview.acceptEditorship (incl. S_PPR transfer)": 110385,
+    "PeerReview.inviteReviewer": 102505,
     "PeerReview.acceptInvite (incl. S_PPR transfer)": 122475,
     "PeerReview.submitReview": 105677,
     "PeerReview.submitReview — final (verdict + panel payout)": 318950,
     "ProposalBoard.settle — approved, 3 REs": 153431,
-    "PeerReview.publishFinalProposal": 159603,
+    "PeerReview.publishFinalProposal": 123995,
     "ProposalBoard.settle — rejected, 3 REs": 318687
   },
   "settleScaling": [

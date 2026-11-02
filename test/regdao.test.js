@@ -309,6 +309,16 @@ describe("RegDAO — manuscript-aligned mechanisms", function () {
       await expect(pr.inviteReviewer(1, low.address)).to.be.revertedWith("PeerReview: reviewer must be Member-Gold+");
     });
 
+    it("awards no additional points to the proposer when an adopted proposal is published", async () => {
+      const { board, pr, badge, proposer, ed1, e1, e2, e3 } = ctx;
+      const postId = await post(ctx);
+      for (const e of [e1, e2, e3]) await endorse(ctx, postId, e, true);
+      const caseId = await review(ctx, postId, [true, true, true]);
+      const p0 = await badge.pointsOf(proposer.address);
+      await pr.connect(ed1).publishFinalProposal(caseId, "Final", "ipfs://final", "summary");
+      expect(await badge.pointsOf(proposer.address)).to.equal(p0);
+    });
+
     it("pays the panel deposit, points and RDAO regardless of verdict", async () => {
       const { pr, rdao, badge, e1, e2, e3, ed1, r1, r2 } = ctx;
       const postId = await post(ctx);
