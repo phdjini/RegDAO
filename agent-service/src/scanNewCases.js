@@ -192,7 +192,7 @@ async function main() {
     const post = await board.posts(postId);
     if (!post.exists || !post.referred || Number(post.outcome) !== 0) continue;
     try {
-      console.log(`\n안건 #${postId} "${post.title}" 검증된 RE ${post.verifiedCount}건 — 피어리뷰 케이스 개시`);
+      console.log(`\n안건 #${postId} "${post.title}" 검증된 찬성 RE ${post.supportCount}건 — 피어리뷰 케이스 개시`);
       const tx = await peerReview.initiateCase(0 /* POLICY_PROPOSAL */, postId, post.author, "");
       await tx.wait();
     } catch (e) {

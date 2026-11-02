@@ -2,51 +2,51 @@
   "deployment": {
     "BadgeSBT": 2315229,
     "RDAOToken": 973118,
-    "ProposalBoard": 4398588,
+    "ProposalBoard": 4178539,
     "PeerReview": 3778131
   },
   "lifecycle": {
-    "ProposalBoard.createPost (incl. S_PRO transfer)": 267459,
-    "ProposalBoard.endorsePost (incl. S_RE transfer)": 390226,
-    "ProposalBoard.recordFCC — first pass (counted; points deferred)": 114372,
-    "ProposalBoard.recordFCC — later pass before referral": 80172,
-    "ProposalBoard.recordFCC — pass that triggers referral (pays dP_PRO and all dP_RE)": 266040,
-    "PeerReview.initiateCase": 182918,
+    "ProposalBoard.createPost (incl. S_PRO transfer)": 267417,
+    "ProposalBoard.endorsePost (incl. S_RE transfer)": 390205,
+    "ProposalBoard.recordFCC — first pass (counted; points deferred)": 114488,
+    "ProposalBoard.recordFCC — later pass before referral": 80288,
+    "ProposalBoard.recordFCC — pass that triggers referral (pays dP_PRO and all dP_RE)": 266651,
+    "PeerReview.initiateCase": 182896,
     "PeerReview.assignEditors": 81352,
     "PeerReview.acceptEditorship (incl. S_PPR transfer)": 110407,
     "PeerReview.inviteReviewer": 102505,
     "PeerReview.acceptInvite (incl. S_PPR transfer)": 122475,
     "PeerReview.submitReview": 105677,
     "PeerReview.submitReview — final (verdict + panel payout)": 318950,
-    "ProposalBoard.settle — approved, 3 REs": 153239,
+    "ProposalBoard.settle — approved, 3 REs": 153431,
     "PeerReview.publishFinalProposal": 159603,
-    "ProposalBoard.settle — rejected, 3 REs": 319668
+    "ProposalBoard.settle — rejected, 3 REs": 318687
   },
   "settleScaling": [
     {
       "endorsements": 3,
-      "approved": 153239,
-      "rejected": 319668
+      "approved": 153431,
+      "rejected": 318687
     },
     {
       "endorsements": 10,
-      "approved": 320491,
-      "rejected": 787003
+      "approved": 321208,
+      "rejected": 783810
     },
     {
       "endorsements": 25,
-      "approved": 678887,
-      "rejected": 1788434
+      "approved": 680729,
+      "rejected": 1780501
     },
     {
       "endorsements": 50,
-      "approved": 1276217,
-      "rejected": 3457489
+      "approved": 1279934,
+      "rejected": 3441656
     },
     {
       "endorsements": 100,
-      "approved": 2470884,
-      "rejected": 6795606
+      "approved": 2478351,
+      "rejected": 6763973
     }
   ]
 }
